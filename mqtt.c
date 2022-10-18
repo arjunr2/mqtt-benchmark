@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <inttypes.h>
+#include <getopt.h>
 
 #include "MQTTClient.h"
 
@@ -12,21 +13,21 @@
  
 #define MS 1000
 
-#define ADDRESS     "tcp://localhost:1883"
+//#define ADDRESS     "tcp://localhost:1883"
 #define TOPIC       "realm/test-topic"
 #define STARTUP_WAIT 100*MS
 
-#define CLIENTID      "Client-Test"
-#define MAX_ITER      20
-#define PAYLOAD_SIZE  64
-#define QOS         1
 #define TIMEOUT     10000L
-#define MSG_INTERVAL 10*MS
-
-#define LOG_ENABLE 0
 
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
   
+char* ADDRESS = "tcp://localhost:1883";
+char* CLIENTID = "test-client";
+uint32_t MSG_INTERVAL = 10*MS;
+uint32_t MAX_ITER = 20;
+uint32_t PAYLOAD_SIZE = 64;
+uint32_t QOS = 1;
+int LOG_ENABLE = 0;
 
 typedef uint64_t TS_TYPE;
 
@@ -68,6 +69,7 @@ void connlost(void *context, char *cause)
 }
  
 
+
 void *subscribe_thread(void *arg) {
   int rc;
   printf("Subscribing: \"%s\" ;  QoS: %d\n"
@@ -89,9 +91,64 @@ void *subscribe_thread(void *arg) {
 }
 
 
+/* Arg Parsing */
+static struct option long_options[] = {
+  {"address", optional_argument, NULL, 'a'},
+  {"name", optional_argument, NULL, 'n'},
+  {"interval", optional_argument, NULL, 'm'},
+  {"iterations", optional_argument, NULL, 'i'},
+  {"qos", optional_argument, NULL, 'q'},
+  {"size", optional_argument, NULL, 's'},
+  {"log", no_argument, NULL, 'v'},
+};
+
+void parse_args(int argc, char* argv[]) {
+  int opt;
+  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:v", long_options, NULL)) != -1) {
+    switch(opt) {
+      case 'a':
+        ADDRESS = strdup(optarg);
+        break;
+      case 'n':
+        CLIENTID = strdup(optarg);
+        break;
+      case 'm':
+        MSG_INTERVAL = atoi(optarg);
+        break;
+      case 'i':
+        MAX_ITER = atoi(optarg);
+        break;
+      case 'q':
+        QOS = atoi(optarg);
+        break;
+      case 's':
+        PAYLOAD_SIZE = atoi(optarg);
+        break;
+      case 'v':
+        LOG_ENABLE = 1;
+        break;
+      default:
+        fprintf(stderr, "Usage: %s [--interval=INTERVAL]\n", argv[0]);
+    }
+  }
+
+  printf("-- Configuration --\n");
+  printf("  Address       : %s\n", ADDRESS);
+  printf("  Client        : %s\n", CLIENTID);
+  printf("  Msg Interval  : %d\n", MSG_INTERVAL);
+  printf("  Iterations    : %d\n", MAX_ITER);
+  printf("  Msg Size      : %d\n", PAYLOAD_SIZE);
+  printf("  QOS           : %d\n", QOS);
+  printf("  LOG           : %d\n", LOG_ENABLE);
+  printf("-----\n");
+  return;
+}
+
 int main(int argc, char* argv[])
 {
     srand(time(NULL));
+
+    parse_args(argc, argv);
 
     /* MQTT Init */
     int rc;
