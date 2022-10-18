@@ -100,11 +100,12 @@ static struct option long_options[] = {
   {"qos", optional_argument, NULL, 'q'},
   {"size", optional_argument, NULL, 's'},
   {"log", no_argument, NULL, 'v'},
+  {"help", no_argument, NULL, 'h'}
 };
 
 void parse_args(int argc, char* argv[]) {
   int opt;
-  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:v", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:vh", long_options, NULL)) != -1) {
     switch(opt) {
       case 'a':
         ADDRESS = strdup(optarg);
@@ -127,8 +128,12 @@ void parse_args(int argc, char* argv[]) {
       case 'v':
         LOG_ENABLE = 1;
         break;
+      case 'h':
       default:
-        fprintf(stderr, "Usage: %s [--interval=INTERVAL]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--address=ADDRESS] [--name=NAME]"
+                                "[--interval=INTERVAL] [--iterations=ITERATIONS]"
+                                "[--qos=QOS] [--size=SIZE] [--log]\n", argv[0]);
+        exit(0);
     }
   }
 
