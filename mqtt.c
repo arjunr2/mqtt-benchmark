@@ -151,7 +151,7 @@ void parse_args(int argc, char* argv[]) {
     }
   }
 
-  printf("-- Configuration --\n");
+  printf("----- Configuration -----\n");
   printf("  Address       : %s\n", ADDRESS);
   printf("  Client        : %s\n", CLIENTID);
   printf("  Msg Interval  : %d\n", MSG_INTERVAL);
@@ -160,7 +160,7 @@ void parse_args(int argc, char* argv[]) {
   printf("  QOS           : %d\n", QOS);
   printf("  LOG           : %d\n", LOG_ENABLE);
   printf("  DROP          : %d\n", DROP_RATIO);
-  printf("-----\n");
+  printf("-------------------------\n");
   return;
 }
 
@@ -258,8 +258,9 @@ int main(int argc, char* argv[])
     }
     acc /= ct;
 
-    printf("\n== SUMMARY STATS ==\n");
+    printf("\n-- SUMMARY STATS --\n");
     printf("Average RTT: %lu\n", acc);
+    printf("-------------------\n\n");
 
 
     if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
