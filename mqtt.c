@@ -13,7 +13,6 @@
  
 #define MS 1000
 
-//#define ADDRESS     "tcp://localhost:1883"
 #define TOPIC       "realm/test-topic"
 #define STARTUP_WAIT 100*MS
 
@@ -23,7 +22,7 @@
 
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
   
-char* ADDRESS = "tcp://localhost:1883";
+char* ADDRESS = "localhost:1883";
 char* CLIENTID = "test-client";
 uint32_t MSG_INTERVAL = 10*MS;
 uint32_t MAX_ITER = 20;
