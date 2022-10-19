@@ -143,9 +143,10 @@ void parse_args(int argc, char* argv[]) {
         break;
       case 'h':
       default:
-        fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)]"
-                                "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)]"
-                                "[--qos=QOS (int)] [--size=SIZE (int)] [--log]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)] "
+                                "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
+                                "[--qos=QOS (int)] [--drop-ratio (int)] [--size=SIZE (int)] "
+                                "[--log]\n", argv[0]);
         exit(0);
     }
   }
