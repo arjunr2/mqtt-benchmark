@@ -40,6 +40,9 @@ TS_TYPE *deliver_ts;
 TS_TYPE *receive_ts;
 uint32_t *rtt_ts;
 
+int done_sending = 0;
+
+
 static uint64_t inline get_ms_time() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -85,17 +88,16 @@ void *subscribe_thread(void *arg) {
   if ((rc = MQTTClient_subscribe(client, TOPIC, QOS)) != MQTTCLIENT_SUCCESS) {
     printf("Failed to subscribe, return code %d\n", rc);
     rc = EXIT_FAILURE;
+    exit(rc);
   }
-  else {
-    int ch;
-    do {
-      ch = getchar();
-    } while(ch != 'q');
-    printf("Unsubscribing!\n");
-    if ((rc = MQTTClient_unsubscribe(client, TOPIC)) != MQTTCLIENT_SUCCESS) {
-      printf("Failed to unsubscribe, return code %d\n", rc);
-      rc = EXIT_FAILURE;
-    }
+
+  while (!done_sending) {
+    usleep(1000);
+  }
+  LOG("Unsubscribing!\n");
+  if ((rc = MQTTClient_unsubscribe(client, TOPIC)) != MQTTCLIENT_SUCCESS) {
+    printf("Failed to unsubscribe, return code %d\n", rc);
+    rc = EXIT_FAILURE;
   }
 }
 
@@ -245,7 +247,10 @@ int main(int argc, char* argv[])
       it++;
     } while(it < MAX_ITER);
 
-    
+    /* End subscribe thread */
+    done_sending = 1;
+    pthread_join(recv_tid, NULL);
+
     /* Stats : Sort and drop outliers*/
     qsort(rtt_ts, MAX_ITER, sizeof(uint32_t), cmpfunc);
 
