@@ -17,6 +17,8 @@
 #define TOPIC       "realm/test-topic"
 #define STARTUP_WAIT 100*MS
 
+#define DROP_IDX(x) ((x * DROP_RATIO)/100)
+
 #define TIMEOUT     10000L
 
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
@@ -27,6 +29,7 @@ uint32_t MSG_INTERVAL = 10*MS;
 uint32_t MAX_ITER = 20;
 uint32_t PAYLOAD_SIZE = 64;
 uint32_t QOS = 1;
+uint32_t DROP_RATIO = 0;
 int LOG_ENABLE = 0;
 
 typedef uint64_t TS_TYPE;
@@ -36,6 +39,7 @@ MQTTClient client;
  
 TS_TYPE *deliver_ts;
 TS_TYPE *receive_ts;
+uint32_t *rtt_ts;
 
 static uint64_t inline get_ms_time() {
   struct timeval tv;
@@ -53,12 +57,17 @@ void delivered(void *context, MQTTClient_deliveryToken dt)
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
     static int itr_ct = 0;
-    receive_ts[itr_ct] = get_ms_time();
-    LOG("Message arrived (%d) | Recv time: %lu (RTT = %lu us)\n", 
-            itr_ct, receive_ts[itr_ct], receive_ts[itr_ct] - deliver_ts[itr_ct]);
+    if (!strncmp(CLIENTID, message->payload, strlen(CLIENTID))) {
+      receive_ts[itr_ct] = get_ms_time();
+      rtt_ts[itr_ct] = receive_ts[itr_ct] - deliver_ts[itr_ct];
+      LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
+              itr_ct, receive_ts[itr_ct], rtt_ts[itr_ct]);
+      itr_ct++;
+    } else {
+      LOG("Message arrived [EXTERNAL]\n");
+    }
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
-    itr_ct++;
     return 1;
 }
  
@@ -83,6 +92,7 @@ void *subscribe_thread(void *arg) {
     do {
       ch = getchar();
     } while(ch != 'q');
+    printf("Unsubscribing!\n");
     if ((rc = MQTTClient_unsubscribe(client, TOPIC)) != MQTTCLIENT_SUCCESS) {
       printf("Failed to unsubscribe, return code %d\n", rc);
       rc = EXIT_FAILURE;
@@ -99,13 +109,14 @@ static struct option long_options[] = {
   {"iterations", optional_argument, NULL, 'i'},
   {"qos", optional_argument, NULL, 'q'},
   {"size", optional_argument, NULL, 's'},
+  {"drop-ratio", optional_argument, NULL, 'd'},
   {"log", no_argument, NULL, 'v'},
   {"help", no_argument, NULL, 'h'}
 };
 
 void parse_args(int argc, char* argv[]) {
   int opt;
-  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:vh", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:vh", long_options, NULL)) != -1) {
     switch(opt) {
       case 'a':
         ADDRESS = strdup(optarg);
@@ -125,14 +136,17 @@ void parse_args(int argc, char* argv[]) {
       case 's':
         PAYLOAD_SIZE = atoi(optarg);
         break;
+      case 'd':
+        DROP_RATIO = atoi(optarg);
+        break;
       case 'v':
         LOG_ENABLE = 1;
         break;
       case 'h':
       default:
-        fprintf(stderr, "Usage: %s [--address=ADDRESS] [--name=NAME]"
-                                "[--interval=INTERVAL] [--iterations=ITERATIONS]"
-                                "[--qos=QOS] [--size=SIZE] [--log]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)]"
+                                "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)]"
+                                "[--qos=QOS (int)] [--size=SIZE (int)] [--log]\n", argv[0]);
         exit(0);
     }
   }
@@ -145,8 +159,14 @@ void parse_args(int argc, char* argv[]) {
   printf("  Msg Size      : %d\n", PAYLOAD_SIZE);
   printf("  QOS           : %d\n", QOS);
   printf("  LOG           : %d\n", LOG_ENABLE);
+  printf("  DROP          : %d\n", DROP_RATIO);
   printf("-----\n");
   return;
+}
+
+
+int cmpfunc (const void* a, const void* b) {
+  return ( *(int*)a - *(int*)b );
 }
 
 int main(int argc, char* argv[])
@@ -192,9 +212,11 @@ int main(int argc, char* argv[])
       payload[i] = (rand() % 26) + 'A';
     }
     payload[PAYLOAD_SIZE-1] = 0;
+    memcpy(payload, CLIENTID, strlen(CLIENTID)); 
 
     deliver_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
     receive_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
+    rtt_ts = (uint32_t*) calloc(MAX_ITER, sizeof(uint32_t));
 
     /* Subscribe thread */
     pthread_t recv_tid;
@@ -217,22 +239,24 @@ int main(int argc, char* argv[])
           rc = EXIT_FAILURE;
       }
       else {
-          while (deliveredtoken != token)
-          {
-            usleep(10000L);
-          }
+          while (deliveredtoken != token) { };
       }
       usleep(MSG_INTERVAL);
       it++;
     } while(it < MAX_ITER);
 
     
-    /* Stats */
+    /* Stats : Sort and drop outliers*/
+    qsort(rtt_ts, MAX_ITER, sizeof(uint32_t), cmpfunc);
+
+    uint32_t idx = DROP_IDX(MAX_ITER);
     uint64_t acc = 0;
-    for (int i = 0; i < MAX_ITER; i++) {
-      acc += (receive_ts[i] - deliver_ts[i]);
+    uint32_t ct = 0;
+    for (int i = idx; i < MAX_ITER - idx; i++) {
+      acc += rtt_ts[i];
+      ct++;
     }
-    acc /= MAX_ITER;
+    acc /= ct;
 
     printf("\n== SUMMARY STATS ==\n");
     printf("Average RTT: %lu\n", acc);
