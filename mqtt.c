@@ -13,7 +13,6 @@
  
 #define MS 1000
 
-#define TOPIC       "realm/test-topic"
 #define STARTUP_WAIT 100*MS
 
 #define DROP_IDX(x) ((x * DROP_RATIO)/100)
@@ -24,6 +23,8 @@
   
 char* ADDRESS = "localhost:1883";
 char* CLIENTID = "test-client";
+char* TOPIC = "realm/test-topic";
+
 uint32_t MSG_INTERVAL = 10*MS;
 uint32_t MAX_ITER = 20;
 uint32_t PAYLOAD_SIZE = 64;
@@ -111,13 +112,14 @@ static struct option long_options[] = {
   {"qos", optional_argument, NULL, 'q'},
   {"size", optional_argument, NULL, 's'},
   {"drop-ratio", optional_argument, NULL, 'd'},
+  {"topic", optional_argument, NULL, 't'},
   {"log", no_argument, NULL, 'v'},
   {"help", no_argument, NULL, 'h'}
 };
 
 void parse_args(int argc, char* argv[]) {
   int opt;
-  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:vh", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
     switch(opt) {
       case 'a':
         ADDRESS = strdup(optarg);
@@ -140,6 +142,9 @@ void parse_args(int argc, char* argv[]) {
       case 'd':
         DROP_RATIO = atoi(optarg);
         break;
+      case 't':
+        TOPIC = optarg;
+        break;
       case 'v':
         LOG_ENABLE = 1;
         break;
@@ -148,7 +153,7 @@ void parse_args(int argc, char* argv[]) {
         fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)] "
                                 "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
                                 "[--qos=QOS (int)] [--drop-ratio (int)] [--size=SIZE (int)] "
-                                "[--log]\n", argv[0]);
+                                "[--topic=TOPIC (str)] [--log]\n", argv[0]);
         exit(0);
     }
   }
@@ -156,12 +161,13 @@ void parse_args(int argc, char* argv[]) {
   printf("----- Configuration -----\n");
   printf("  Address       : %s\n", ADDRESS);
   printf("  Client        : %s\n", CLIENTID);
+  printf("  Topic         : %s\n", TOPIC);
   printf("  Msg Interval  : %d\n", MSG_INTERVAL);
   printf("  Iterations    : %d\n", MAX_ITER);
   printf("  Msg Size      : %d\n", PAYLOAD_SIZE);
   printf("  QOS           : %d\n", QOS);
-  printf("  LOG           : %d\n", LOG_ENABLE);
-  printf("  DROP          : %d\n", DROP_RATIO);
+  printf("  Drop          : %d\n", DROP_RATIO);
+  printf("  Log           : %d\n", LOG_ENABLE);
   printf("-------------------------\n");
   return;
 }
