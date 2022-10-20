@@ -13,10 +13,10 @@ OUT=""
 
 case $1 in
 	nointerference)
-		OUT=$(hc cmd -x "cd mqtt-benchmark; ./benchmark --address=hc-00.arena.andrew.cmu.edu --name=\`uuidgen\` --interval=100000 --iterations=100 --topic=\`uuidgen\` --drop-ratio=10")
+		OUT=$(hc cmd -x "cd mqtt-benchmark; ./benchmark --address=$(ADDRESS) --name=$(NAME) --interval=$(INTERVAL) --iterations=$(ITER) --topic=$(TOPIC) --drop-ratio=$(DROP_RATIO)")
 		;;
 	isolated)
-		OUT=$(hc cmd --sync -x "cd mqtt-benchmark; ./benchmark --address=hc-00.arena.andrew.cmu.edu --name=\`uuidgen\` --interval=100000 --iterations=100 --topic=\`uuidgen\` --drop-ratio=10")
+		OUT=$(hc cmd --sync -x "cd mqtt-benchmark; ./benchmark --address=$(ADDRESS) --name=$(NAME) --interval=$(INTERVAL) --iterations=$(ITER) --topic=$(TOPIC) --drop-ratio=$(DROP_RATIO)")
 		;;
 	*)
 		echo "Invalid argument (options: nointerference | isolated)"
