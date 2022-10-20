@@ -5,6 +5,7 @@
 #include <time.h>
 #include <inttypes.h>
 #include <getopt.h>
+#include <math.h>
 
 #include "MQTTClient.h"
 
@@ -79,8 +80,6 @@ void connlost(void *context, char *cause)
     printf("     cause: %s\n", cause);
 }
  
-
-
 void *subscribe_thread(void *arg) {
   int rc;
   printf("Subscribing: \"%s\" ;  QoS: %d\n"
@@ -266,10 +265,17 @@ int main(int argc, char* argv[])
       acc += rtt_ts[i];
       ct++;
     }
-    acc /= ct;
+    uint32_t mean = acc / ct;
+
+    acc = 0;
+    for (int i = idx; i < MAX_ITER - idx; i++) {
+      acc += ((rtt_ts[i] - mean) * (rtt_ts[i] - mean));
+    }
+    uint32_t std_dev = (uint32_t)(sqrt(acc/ct));
 
     printf("\n-- SUMMARY STATS --\n");
-    printf("Average RTT: %lu\n", acc);
+    printf("Average RTT: %u\n", mean);
+    printf("Std Dev: %u\n", std_dev);
     printf("-------------------\n\n");
 
 
