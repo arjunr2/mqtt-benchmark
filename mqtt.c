@@ -245,7 +245,9 @@ int main(int argc, char* argv[])
           rc = EXIT_FAILURE;
       }
       else {
-          while (deliveredtoken != token) { };
+          if (QOS != 0) {
+            while (deliveredtoken != token) { };
+          }
       }
       usleep(MSG_INTERVAL);
       it++;
