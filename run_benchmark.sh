@@ -5,13 +5,14 @@
 ADDRESS=hc-00.arena.andrew.cmu.edu
 NAME=\`uuidgen\`
 TOPIC=\`uuidgen\`
-INTERVAL=100000
+INTERVAL=2000
 ITER=100
 DROP_RATIO=10
+QOS=0
 
 OUT=""
 
-script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO"
+script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO --qos=$QOS"
 
 case $1 in
 	nointerference)
@@ -26,8 +27,8 @@ case $1 in
 		;;
 esac
 
-
+echo "$1 ; Interval=$INTERVAL ; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $1.results  
 echo "$OUT" | tee log \
 	  | awk '/\[hc-[0-9]+\]/ {printf "%s | ",$1 nr[NR+15]; next}; NR in nr' \
 	  | sort \
-	  > $1.results
+	  >> $1.results
