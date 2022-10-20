@@ -8,7 +8,6 @@
 
 #include "MQTTClient.h"
 
-#include <sys/time.h>
 #include <unistd.h>
  
 #define MS 1000
@@ -44,11 +43,11 @@ uint32_t *rtt_ts;
 int done_sending = 0;
 
 
-static uint64_t inline get_ms_time() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  uint64_t millis = (uint64_t)(tv.tv_sec) * 1000000 + (uint64_t)(tv.tv_usec);
-  return millis;
+static uint64_t inline get_us_time() {
+  struct timespec tv;
+  clock_gettime(CLOCK_REALTIME, &tv);
+  uint64_t micros = ((uint64_t)(tv.tv_sec) * 1000000) + ((uint64_t)(tv.tv_nsec) / 1000);
+  return micros;
 }
 
 void delivered(void *context, MQTTClient_deliveryToken dt)
@@ -61,7 +60,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
 {
     static int itr_ct = 0;
     if (!strncmp(CLIENTID, message->payload, strlen(CLIENTID))) {
-      receive_ts[itr_ct] = get_ms_time();
+      receive_ts[itr_ct] = get_us_time();
       rtt_ts[itr_ct] = receive_ts[itr_ct] - deliver_ts[itr_ct];
       LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
               itr_ct, receive_ts[itr_ct], rtt_ts[itr_ct]);
@@ -240,7 +239,7 @@ int main(int argc, char* argv[])
 
     int it = 0;
     do {
-      deliver_ts[it] = get_ms_time();
+      deliver_ts[it] = get_us_time();
       LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts[it]);
       if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
           printf("Failed to publish message, return code %d\n", rc);
