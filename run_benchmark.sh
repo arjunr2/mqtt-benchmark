@@ -3,6 +3,7 @@
 shopt -s expand_aliases
 source ~/.alias
 
+set -x
 ADDRESS=hc-00.arena.andrew.cmu.edu
 NAME=\`uuidgen\`
 TOPIC=\`uuidgen\`
@@ -13,9 +14,7 @@ QOS=0
 LOG=""
 SIZE=64
 
-OUT=""
-
-while getopts 'a:n:m:i:q:s:d:t:v' opt
+while getopts 'a:n:m:i:q:s:d:t:vo:h' opt
 do
 	case "${opt}" in
 		a) ADDRESS=$OPTARG;;
@@ -27,30 +26,38 @@ do
 		d) DROP_RATIO=$OPTARG;;
 		t) TOPIC=$OPTARG;;
 		v) LOG="--log";;
+		o) OUTPUT_FILE=$OPTARG;;
+		h) echo "Usage: ./run_benchmark.sh [-anmiqsdtvo] BENCH_TYPE"
+		   exit 1;;
 	esac
 done
 BENCH_TYPE=${@:$OPTIND:1}
+
+OUTPUT_FILE="${OUTPUT_FILE:-$BENCH_TYPE.results}"
+echo "Writing results to $OUTPUT_FILE"
 
 script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO --qos=$QOS --size=$SIZE $LOG"
 echo $script_str
 
 
+OUT=""
 case $BENCH_TYPE in
 	nointerference)
 		OUT=$(hc cmd -x "$script_str") ;;
 	isolated)
 		OUT=$(hc cmd --sync -x "$script_str") ;;
 	*)
-		echo "Invalid argument (options: nointerference | isolated)"
+		echo "Invalid benchtype (options: nointerference | isolated)"
 		exit 1
 		;;
 esac
 
-echo "$1 | Interval=$INTERVAL ; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $1.results  
+echo "$OUTPUT_FILE | Interval=$INTERVAL ; Size=$SIZE; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $OUTPUT_FILE
 echo "$OUT" | tee log \
 	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16];next}; NR in nr' \
 	  | sed "s/.*/&,/" \
 	  | xargs -d"\n" -n3	\
 	  | column -t -s ","	\
 	  | sort \
-	  >> $1.results
+	  >> $OUTPUT_FILE
+echo "" >> $OUTPUT_FILE
