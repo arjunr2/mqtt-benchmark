@@ -5,7 +5,7 @@
 ADDRESS=hc-00.arena.andrew.cmu.edu
 NAME=\`uuidgen\`
 TOPIC=\`uuidgen\`
-INTERVAL=2000
+INTERVAL=100000
 ITER=100
 DROP_RATIO=10
 QOS=0
@@ -29,6 +29,9 @@ esac
 
 echo "$1 ; Interval=$INTERVAL ; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $1.results  
 echo "$OUT" | tee log \
-	  | awk '/\[hc-[0-9]+\]/ {printf "%s | ",$1 nr[NR+15]; next}; NR in nr' \
+	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16];next}; NR in nr' \
+	  | sed "s/.*/&,/" \
+	  | xargs -d"\n" -n3	\
+	  | column -t -s ","	\
 	  | sort \
 	  >> $1.results
