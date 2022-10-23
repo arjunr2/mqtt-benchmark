@@ -3,7 +3,6 @@
 shopt -s expand_aliases
 source ~/.alias
 
-set -x
 ADDRESS=hc-00.arena.andrew.cmu.edu
 NAME=\`uuidgen\`
 TOPIC=\`uuidgen\`

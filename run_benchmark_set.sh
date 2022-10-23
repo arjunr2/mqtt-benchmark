@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+
 RESULT_DIR=results
 
 rm -r $RESULT_DIR
