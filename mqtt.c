@@ -285,6 +285,10 @@ int main(int argc, char* argv[])
     printf("\n-- SUMMARY STATS --\n");
     printf("Average RTT: %u\n", mean);
     printf("Std Dev: %u\n", std_dev);
+    for (uint32_t i = 0; i < MAX_ITER; i++) {
+      printf("%d,", rtt_ts[i]);
+    }
+    printf("\n");
     printf("-------------------\n\n");
 
  
@@ -294,3 +298,29 @@ destroy_exit:
 exit:
     return rc;
 }
+
+/*
+int compute_least(uint32_t* means, uint32_t* arr, uint32_t sz, int k) {
+  for (int i = 0; i < sz; i++) {
+    uint32_t min_idx = 0;
+    uint32_t min = arr[min_idx];
+    for (int j = 0; j < k; j++) {
+      uint32_t val = abs(arr[i] - means[j]);
+      if (val < min) {
+        min = val;
+        min_idx = sz;
+      }
+    }
+  }
+}
+
+uint32_t* kmeans(uint32_t* arr, uint32_t sz, int k) {
+  uint32_t* means = (uint32_t*) malloc(k * sizeof(int));
+  uint32_t* cluster_map = (uint32_t*) malloc(sz * sizeof(uint32_t));
+  for (int i = 0; i < k; i++) {
+    means = arr[(sz/k)*i];
+  }
+  for (int n = 0; n < 10; n++) {
+  }
+  
+}*/
