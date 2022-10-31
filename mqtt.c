@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include "MQTTClient.h"
+#include <Python.h>
 
 #include <unistd.h>
  
@@ -257,6 +258,12 @@ int main(int argc, char* argv[])
     done_sending = 1;
     pthread_join(recv_tid, NULL);
 
+    if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
+    {
+        printf("Failed to disconnect, return code %d\n", rc);
+        rc = EXIT_FAILURE;
+    }
+
     /* Stats : Sort and drop outliers*/
     qsort(rtt_ts, MAX_ITER, sizeof(uint32_t), cmpfunc);
 
@@ -280,12 +287,6 @@ int main(int argc, char* argv[])
     printf("Std Dev: %u\n", std_dev);
     printf("-------------------\n\n");
 
-
-    if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
-    {
-        printf("Failed to disconnect, return code %d\n", rc);
-        rc = EXIT_FAILURE;
-    }
  
 destroy_exit:
     MQTTClient_destroy(&client);
