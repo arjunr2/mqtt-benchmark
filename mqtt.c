@@ -8,7 +8,6 @@
 #include <math.h>
 
 #include "MQTTClient.h"
-#include <Python.h>
 
 #include <unistd.h>
  

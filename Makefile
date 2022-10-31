@@ -1,5 +1,5 @@
 .PHONY: comp dir clean
-cmds := $(shell python3-config --includes)
+#cmds := $(shell python3-config --includes)
 
 comp:
 	gcc mqtt.c $(cmds) -lpthread -lpaho-mqtt3cs -lm -o benchmark
