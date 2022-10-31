@@ -4,7 +4,8 @@ import numpy as np
 
 i = 0
 for line in sys.stdin.readlines():
-    if i == 17:
+    if line.startswith("Data Pts: "):
+        line = line[10:]
         data = np.array(line.split(',')[:-1])
         np_data = np.reshape(data, (-1, 1))
         kmeans = KMeans(n_clusters=3).fit(np_data)

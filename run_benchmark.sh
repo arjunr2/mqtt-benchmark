@@ -35,7 +35,7 @@ BENCH_TYPE=${@:$OPTIND:1}
 OUTPUT_FILE="${OUTPUT_FILE:-$BENCH_TYPE.results}"
 echo "Writing results to $OUTPUT_FILE"
 
-script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO --qos=$QOS --size=$SIZE $LOG | python3 postprocess.py"
+script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO --qos=$QOS --size=$SIZE $LOG"
 echo $script_str
 
 
@@ -52,7 +52,8 @@ case $BENCH_TYPE in
 esac
 
 echo "$OUTPUT_FILE | Interval=$INTERVAL ; Size=$SIZE; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $OUTPUT_FILE
-echo "$OUT" | tee log \
+echo "$OUT" | python3 postprocess.py \
+	  | tee log \
 	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17];next}; NR in nr' \
 	  | sed "s/.*/&,/" \
 	  | xargs -d"\n" -n3	\
