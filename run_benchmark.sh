@@ -56,7 +56,7 @@ echo "$OUT" | python3 postprocess.py \
 	  | tee log \
 	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17];next}; NR in nr' \
 	  | sed "s/.*/&,/" \
-	  | xargs -d"\n" -n3	\
+	  | xargs -d"\n" -n4	\
 	  | column -t -s ","	\
 	  | sort \
 	  >> $OUTPUT_FILE
