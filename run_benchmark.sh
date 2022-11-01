@@ -59,8 +59,8 @@ case $BENCH_TYPE in
 esac
 
 echo "$OUTPUT_FILE | Interval=$INTERVAL ; Size=$SIZE; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $OUTPUT_FILE
-echo "$OUT" | python3 postprocess.py \
-	  | tee logs/${OUTPUT_BASENAME}.log \
+echo "$OUT" | tee logs/${OUTPUT_BASENAME}.log \
+	  | python3 postprocess.py \
 	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17];next}; NR in nr' \
 	  | sed "s/.*/&,/" \
 	  | xargs -d"\n" -n4	\
