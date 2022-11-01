@@ -33,7 +33,9 @@ BENCH_TYPE=${@:$OPTIND:1}
 
 OUTPUT_FILE="${OUTPUT_FILE:-$BENCH_TYPE.results}"
 OUTPUT_BASENAME=$(basename $OUTPUT_FILE .results)
+LOG_FILE="logs/${OUTPUT_BASENAME}.log"
 echo "Writing results to $OUTPUT_FILE"
+echo "Writing results to $LOG_FILE"
 
 if [ "$BENCH_TYPE" = "nointerference" ]; then
 	TOPIC=\`uuidgen\`
@@ -59,11 +61,11 @@ case $BENCH_TYPE in
 esac
 
 echo "$OUTPUT_FILE | Interval=$INTERVAL ; Size=$SIZE; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $OUTPUT_FILE
-echo "$OUT" | tee logs/${OUTPUT_BASENAME}.log \
+echo "$OUT" | tee $LOG_FILE \
 	  | python3 postprocess.py \
-	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17];next}; NR in nr' \
+	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17] nr[NR+18] nr[NR+19] ;next}; NR in nr' \
 	  | sed "s/.*/&,/" \
-	  | xargs -d"\n" -n4	\
+	  | xargs -d"\n" -n6	\
 	  | column -t -s ","	\
 	  | sort \
 	  >> $OUTPUT_FILE

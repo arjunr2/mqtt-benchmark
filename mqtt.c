@@ -282,8 +282,8 @@ int main(int argc, char* argv[])
     uint32_t std_dev = (uint32_t)(sqrt(acc/ct));
 
     printf("\n-- SUMMARY STATS --\n");
-    printf("Average RTT: %u\n", mean);
-    printf("Std Dev: %u\n", std_dev);
+    printf("Mean-RTT: %u\n", mean);
+    printf("Std-Dev: %u\n", std_dev);
     printf("Data Pts: ");
     for (uint32_t i = idx; i < MAX_ITER - idx; i++) {
       printf("%d,", rtt_ts[i]);
