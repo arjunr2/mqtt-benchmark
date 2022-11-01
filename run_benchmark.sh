@@ -5,10 +5,9 @@ source ~/.alias
 
 ADDRESS=hc-00.arena.andrew.cmu.edu
 NAME=\`uuidgen\`
-TOPIC=\`uuidgen\`
 INTERVAL=100000
 ITER=100
-DROP_RATIO=10
+DROP_RATIO=5
 QOS=0
 LOG=""
 SIZE=64
@@ -33,11 +32,16 @@ done
 BENCH_TYPE=${@:$OPTIND:1}
 
 OUTPUT_FILE="${OUTPUT_FILE:-$BENCH_TYPE.results}"
+OUTPUT_BASENAME=$(basename $OUTPUT_FILE .results)
 echo "Writing results to $OUTPUT_FILE"
 
+if [ "$BENCH_TYPE" = "nointerference" ]; then
+	TOPIC=\`uuidgen\`
+else
+	TOPIC="${TOPIC:-interftopic}"
+fi
 script_str="cd mqtt-benchmark; ./benchmark --address=$ADDRESS --name=$NAME --interval=$INTERVAL --iterations=$ITER --topic=$TOPIC --drop-ratio=$DROP_RATIO --qos=$QOS --size=$SIZE $LOG"
 echo $script_str
-
 
 OUT=""
 case $BENCH_TYPE in
@@ -45,15 +49,18 @@ case $BENCH_TYPE in
 		OUT=$(hc cmd -x "$script_str") ;;
 	isolated)
 		OUT=$(hc cmd --sync -x "$script_str") ;;
+	interference)
+		# Interference is just the same topic
+		OUT=$(hc cmd -x "$script_str") ;;
 	*)
-		echo "Invalid benchtype (options: nointerference | isolated)"
+		echo "Invalid benchtype (options: interference | nointerference | isolated)"
 		exit 1
 		;;
 esac
 
 echo "$OUTPUT_FILE | Interval=$INTERVAL ; Size=$SIZE; Iter=$ITER ; QOS=$QOS ; Drop=$DROP_RATIO" > $OUTPUT_FILE
 echo "$OUT" | python3 postprocess.py \
-	  | tee log \
+	  | tee logs/${OUTPUT_BASENAME}.log \
 	  | awk '/\[hc-[0-9]+\]/ {print $1 nr[NR+15] nr[NR+16] nr[NR+17];next}; NR in nr' \
 	  | sed "s/.*/&,/" \
 	  | xargs -d"\n" -n4	\

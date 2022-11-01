@@ -6,6 +6,7 @@ comp:
 
 start-benchmark: dir comp
 	mkdir -p results
+	mkdir -p logs
 	screen -S mqtt-benchmark-$(type) -dm bash -c "./update_bench.sh; ./run_benchmark_set.sh $(type)"
 
 stop-benchmark:
@@ -14,5 +15,6 @@ stop-benchmark:
 clean:
 	rm benchmark
 
-clean-results:
+clean-stats:
 	rm -r results
+	rm -r logs
