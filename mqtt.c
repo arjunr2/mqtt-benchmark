@@ -59,10 +59,15 @@ void delivered(void *context, MQTTClient_deliveryToken dt)
  
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
+    TS_TYPE deliver_time;
     static int itr_ct = 0;
+    uint32_t ts_pt = strlen(CLIENTID) + 2;
     if (!strncmp(CLIENTID, message->payload, strlen(CLIENTID))) {
+      /* Get receive and deliver time */
       receive_ts[itr_ct] = get_us_time();
-      rtt_ts[itr_ct] = receive_ts[itr_ct] - deliver_ts[itr_ct];
+      memcpy(&deliver_time, message->payload + ts_pt, sizeof(TS_TYPE));
+      /* Compute RTT */
+      rtt_ts[itr_ct] = receive_ts[itr_ct] - deliver_time;
       LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
               itr_ct, receive_ts[itr_ct], rtt_ts[itr_ct]);
       itr_ct++;
@@ -218,7 +223,8 @@ int main(int argc, char* argv[])
       payload[i] = (rand() % 26) + 'A';
     }
     payload[PAYLOAD_SIZE-1] = 0;
-    memcpy(payload, CLIENTID, strlen(CLIENTID)); 
+    /* Set the start of buffer with CLIENTID and timestamp */
+    memcpy(payload, CLIENTID, strlen(CLIENTID) + 1); 
 
     deliver_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
     receive_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
@@ -231,20 +237,22 @@ int main(int argc, char* argv[])
 
 
     pubmsg.payload = payload;
-    pubmsg.payloadlen = (int)strlen(payload);
+    pubmsg.payloadlen = PAYLOAD_SIZE;
     pubmsg.qos = QOS;
     pubmsg.retained = 0;
     deliveredtoken = 0;
 
     int it = 0;
+    uint32_t ts_pt = strlen(CLIENTID) + 2;
     do {
       deliver_ts[it] = get_us_time();
-      LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts[it]);
+      memcpy(payload + ts_pt, &deliver_ts[it], sizeof(TS_TYPE));
       if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
           printf("Failed to publish message, return code %d\n", rc);
           rc = EXIT_FAILURE;
       }
       else {
+          LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts[it]);
           if (QOS != 0) {
             while (deliveredtoken != token) { };
           }
