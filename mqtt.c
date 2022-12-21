@@ -12,14 +12,11 @@
 #include <unistd.h>
  
 #define MS 1000
-
 #define STARTUP_WAIT 100*MS
-
 #define DROP_IDX(x) ((x * DROP_RATIO)/100)
-
-#define TIMEOUT     10000L
-
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
+
+char* END_TOKEN = "$$end$$";
   
 char* ADDRESS = "localhost:1883";
 char* CLIENTID = "test-client";
@@ -72,7 +69,12 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
               itr_ct, receive_ts[itr_ct], rtt_ts[itr_ct]);
       itr_ct++;
     } else {
-      LOG("Message arrived [EXTERNAL]\n");
+      if (!strncmp(END_TOKEN, message->payload, strlen(END_TOKEN))) {
+        LOG("End token received!\n");
+        done_sending = 1;
+      } else {
+        LOG("Message arrived [EXTERNAL]\n");
+      }
     }
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
@@ -124,33 +126,15 @@ void parse_args(int argc, char* argv[]) {
   int opt;
   while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
     switch(opt) {
-      case 'a':
-        ADDRESS = strdup(optarg);
-        break;
-      case 'n':
-        CLIENTID = strdup(optarg);
-        break;
-      case 'm':
-        MSG_INTERVAL = atoi(optarg);
-        break;
-      case 'i':
-        MAX_ITER = atoi(optarg);
-        break;
-      case 'q':
-        QOS = atoi(optarg);
-        break;
-      case 's':
-        PAYLOAD_SIZE = atoi(optarg);
-        break;
-      case 'd':
-        DROP_RATIO = atoi(optarg);
-        break;
-      case 't':
-        TOPIC = optarg;
-        break;
-      case 'v':
-        LOG_ENABLE = 1;
-        break;
+      case 'a': ADDRESS = strdup(optarg);     break;
+      case 'n': CLIENTID = strdup(optarg);    break;
+      case 'm': MSG_INTERVAL = atoi(optarg);  break;
+      case 'i': MAX_ITER = atoi(optarg);      break;
+      case 'q': QOS = atoi(optarg);           break;
+      case 's': PAYLOAD_SIZE = atoi(optarg);  break;
+      case 'd': DROP_RATIO = atoi(optarg);    break;
+      case 't': TOPIC = optarg;               break;
+      case 'v': LOG_ENABLE = 1;               break;
       case 'h':
       default:
         fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)] "
@@ -175,6 +159,9 @@ void parse_args(int argc, char* argv[]) {
   return;
 }
 
+
+/* Print summary statistics for benchmark */
+void summary_stats(uint32_t* rtt_ts);
 
 int cmpfunc (const void* a, const void* b) {
   return ( *(int*)a - *(int*)b );
@@ -230,12 +217,12 @@ int main(int argc, char* argv[])
     receive_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
     rtt_ts = (uint32_t*) calloc(MAX_ITER, sizeof(uint32_t));
 
-    /* Subscribe thread */
+    /* Subscribe thread create */
     pthread_t recv_tid;
     pthread_create(&recv_tid, NULL, subscribe_thread, NULL);
     usleep(STARTUP_WAIT);
 
-
+    /* Publish Message Characteristics */
     pubmsg.payload = payload;
     pubmsg.payloadlen = PAYLOAD_SIZE;
     pubmsg.qos = QOS;
@@ -245,8 +232,10 @@ int main(int argc, char* argv[])
     int it = 0;
     uint32_t ts_pt = strlen(CLIENTID) + 2;
     do {
+      /* Append timestamp to payload */
       deliver_ts[it] = get_us_time();
       memcpy(payload + ts_pt, &deliver_ts[it], sizeof(TS_TYPE));
+
       if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
           printf("Failed to publish message, return code %d\n", rc);
           rc = EXIT_FAILURE;
@@ -261,17 +250,35 @@ int main(int argc, char* argv[])
       it++;
     } while(it < MAX_ITER);
 
-    /* End subscribe thread */
-    done_sending = 1;
+    /* Send END_TOKEN to subscribe thread with QOS 2 */
+    LOG("Ending PUB stream\n");
+    pubmsg.qos = 2;
+    strcpy(payload, END_TOKEN);
+    if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
+        printf("Failed to publish message, return code %d\n", rc);
+        rc = EXIT_FAILURE;
+    }
+    else {  while (deliveredtoken != token) { };  }
     pthread_join(recv_tid, NULL);
 
-    if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
-    {
+    if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)  {
         printf("Failed to disconnect, return code %d\n", rc);
         rc = EXIT_FAILURE;
     }
 
-    /* Stats : Sort and drop outliers*/
+    summary_stats(rtt_ts);
+
+destroy_exit:
+    MQTTClient_destroy(&client);
+ 
+exit:
+    return rc;
+}
+
+
+/* Print summary statistics for benchmark */
+void summary_stats(uint32_t* rtt_ts) {
+    /* Sort and drop outliers*/
     qsort(rtt_ts, MAX_ITER, sizeof(uint32_t), cmpfunc);
 
     uint32_t idx = DROP_IDX(MAX_ITER);
@@ -299,11 +306,4 @@ int main(int argc, char* argv[])
     printf("\n");
     printf("-------------------\n\n");
 
- 
-destroy_exit:
-    MQTTClient_destroy(&client);
- 
-exit:
-    return rc;
 }
-
