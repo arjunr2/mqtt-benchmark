@@ -10,17 +10,22 @@
 #include "MQTTClient.h"
 
 #include <unistd.h>
- 
+
+#define MAX_TOPICS 1000
 #define MS 1000
 #define STARTUP_WAIT 100*MS
 #define DROP_IDX(x) ((x * DROP_RATIO)/100)
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
+#define ERR(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
 
-char* END_TOKEN = "$$end$$";
+const char* END_TOKEN = "$$end$$";
   
-char* ADDRESS = "localhost:1883";
+char* BROKER = "localhost:1883";
 char* CLIENTID = "test-client";
-char* TOPIC = "realm/test-topic";
+int NUM_PUBS = 0;
+int NUM_SUBS = 0;
+char* PUBS[MAX_TOPICS] = { NULL };
+char* SUBS[MAX_TOPICS] = { NULL };
 
 uint32_t MSG_INTERVAL = 10*MS;
 uint32_t MAX_ITER = 20;
@@ -87,11 +92,12 @@ void connlost(void *context, char *cause)
     printf("     cause: %s\n", cause);
 }
  
+/* Main Subscription Thread */
 void *subscribe_thread(void *arg) {
   int rc;
   printf("Subscribing: \"%s\" ;  QoS: %d\n"
-        "Press q to quit\n", TOPIC, QOS);
-  if ((rc = MQTTClient_subscribe(client, TOPIC, QOS)) != MQTTCLIENT_SUCCESS) {
+        "Press q to quit\n", SUBS[0], QOS);
+  if ((rc = MQTTClient_subscribe(client, SUBS[0], QOS)) != MQTTCLIENT_SUCCESS) {
     printf("Failed to subscribe, return code %d\n", rc);
     rc = EXIT_FAILURE;
     exit(rc);
@@ -101,7 +107,7 @@ void *subscribe_thread(void *arg) {
     usleep(1000);
   }
   LOG("Unsubscribing!\n");
-  if ((rc = MQTTClient_unsubscribe(client, TOPIC)) != MQTTCLIENT_SUCCESS) {
+  if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
     printf("Failed to unsubscribe, return code %d\n", rc); 
     rc = EXIT_FAILURE; 
   }
@@ -110,45 +116,70 @@ void *subscribe_thread(void *arg) {
 
 /* Arg Parsing */
 static struct option long_options[] = {
-  {"address", optional_argument, NULL, 'a'},
+  {"broker", optional_argument, NULL, 'b'},  // pubsub
   {"name", optional_argument, NULL, 'n'},
   {"interval", optional_argument, NULL, 'm'},
   {"iterations", optional_argument, NULL, 'i'},
   {"qos", optional_argument, NULL, 'q'},
   {"size", optional_argument, NULL, 's'},
+  {"pub", optional_argument, NULL, 'u'},
+  {"sub", optional_argument, NULL, 't'},
   {"drop-ratio", optional_argument, NULL, 'd'},
   {"topic", optional_argument, NULL, 't'},
   {"log", no_argument, NULL, 'v'},
   {"help", no_argument, NULL, 'h'}
 };
 
+char* parse_topic_list(char** buf, int ct, char* arg) {
+  char* full_str = strdup(arg);
+  const char d[2] = ",";
+  char* token = strtok(arg, d);
+  while (token != NULL) {
+    buf[ct++] = strdup(token);
+    token = strtok(NULL, d);
+  }
+  return full_str;
+}
+
+
 void parse_args(int argc, char* argv[]) {
   int opt;
+  char *pubarg, *subarg;
   while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
     switch(opt) {
-      case 'a': ADDRESS = strdup(optarg);     break;
-      case 'n': CLIENTID = strdup(optarg);    break;
-      case 'm': MSG_INTERVAL = atoi(optarg);  break;
-      case 'i': MAX_ITER = atoi(optarg);      break;
-      case 'q': QOS = atoi(optarg);           break;
-      case 's': PAYLOAD_SIZE = atoi(optarg);  break;
-      case 'd': DROP_RATIO = atoi(optarg);    break;
-      case 't': TOPIC = optarg;               break;
-      case 'v': LOG_ENABLE = 1;               break;
+      case 'a': BROKER = strdup(optarg);                break;
+      case 'n': CLIENTID = strdup(optarg);              break;
+      case 'm': MSG_INTERVAL = atoi(optarg);            break;
+      case 'i': MAX_ITER = atoi(optarg);                break;
+      case 'q': QOS = atoi(optarg);                     break;
+      case 's': PAYLOAD_SIZE = atoi(optarg);            break;
+      case 'd': DROP_RATIO = atoi(optarg);              break;
+      case 'u': pubarg = parse_topic_list(PUBS, NUM_PUBS, optarg);    break;
+      case 't': subarg = parse_topic_list(SUBS, NUM_SUBS, optarg);    break;
+      case 'v': LOG_ENABLE = 1;                         break;
       case 'h':
       default:
-        fprintf(stderr, "Usage: %s [--address=ADDRESS (str)] [--name=NAME (str)] "
-                                "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
-                                "[--qos=QOS (int)] [--drop-ratio (int)] [--size=SIZE (int)] "
-                                "[--topic=TOPIC (str)] [--log]\n", argv[0]);
+        ERR("Usage: %s [--broker=BROKER (str)] [--name=NAME (str)] "
+                      "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
+                      "[--qos=QOS (int)] [--drop-ratio (int)] [--size=SIZE (int)] "
+                      "[--pub=TOPIC1,TOPIC2,.. (str)] "
+                      "[--sub=TOPIC1,TOPIC2,.. (str)] [--log]\n", 
+                      argv[0]);
         exit(0);
     }
   }
 
+  if (!PUBS[0] && !SUBS[0]) {
+    ERR("Error: Must specify either --pub or --sub list. "
+        "Run with -h for help menu\n");
+    exit(0);
+  }
+
   printf("----- Configuration -----\n");
-  printf("  Address       : %s\n", ADDRESS);
+  printf("  Broker        : %s\n", BROKER);
   printf("  Client        : %s\n", CLIENTID);
-  printf("  Topic         : %s\n", TOPIC);
+  printf("  Pubtopics     : %s\n", pubarg);
+  printf("  Subtopics     : %s\n", subarg);
   printf("  Msg Interval  : %d\n", MSG_INTERVAL);
   printf("  Iterations    : %d\n", MAX_ITER);
   printf("  Msg Size      : %d\n", PAYLOAD_SIZE);
@@ -179,7 +210,7 @@ int main(int argc, char* argv[])
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
 
-    if ((rc = MQTTClient_create(&client, ADDRESS, CLIENTID,
+    if ((rc = MQTTClient_create(&client, BROKER, CLIENTID,
         MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
     {
         printf("Failed to create client, return code %d\n", rc);
@@ -231,12 +262,13 @@ int main(int argc, char* argv[])
 
     int it = 0;
     uint32_t ts_pt = strlen(CLIENTID) + 2;
+    LOG("PUB to: %s\n", PUBS[0]);
     do {
       /* Append timestamp to payload */
       deliver_ts[it] = get_us_time();
       memcpy(payload + ts_pt, &deliver_ts[it], sizeof(TS_TYPE));
 
-      if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
+      if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
           printf("Failed to publish message, return code %d\n", rc);
           rc = EXIT_FAILURE;
       }
@@ -254,7 +286,7 @@ int main(int argc, char* argv[])
     LOG("Ending PUB stream\n");
     pubmsg.qos = 2;
     strcpy(payload, END_TOKEN);
-    if ((rc = MQTTClient_publishMessage(client, TOPIC, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
+    if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
         printf("Failed to publish message, return code %d\n", rc);
         rc = EXIT_FAILURE;
     }
