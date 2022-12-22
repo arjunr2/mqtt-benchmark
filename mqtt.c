@@ -39,9 +39,9 @@ typedef uint64_t TS_TYPE;
 MQTTClient_deliveryToken deliveredtoken = -1;
 MQTTClient client;
  
-TS_TYPE *deliver_ts;
-TS_TYPE *receive_ts;
-uint32_t *rtt_ts;
+TS_TYPE *deliver_ts = NULL;
+TS_TYPE *receive_ts = NULL;
+uint32_t *rtt_ts = NULL;
 
 int done_sending = 0;
 
@@ -220,12 +220,12 @@ static struct option long_options[] = {
   {"help", no_argument, NULL, 'h'}
 };
 
-char* parse_topic_list(char** buf, int ct, char* arg) {
+char* parse_topic_list(char** buf, int *ct, char* arg) {
   char* full_str = strdup(arg);
   const char d[2] = ",";
   char* token = strtok(arg, d);
   while (token != NULL) {
-    buf[ct++] = strdup(token);
+    buf[(*ct)++] = strdup(token);
     token = strtok(NULL, d);
   }
   return full_str;
@@ -234,7 +234,7 @@ char* parse_topic_list(char** buf, int ct, char* arg) {
 
 void parse_args(int argc, char* argv[]) {
   int opt;
-  char *pubarg, *subarg;
+  char *pubarg = "", *subarg = "";
   while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
     switch(opt) {
       case 'a': BROKER = strdup(optarg);                break;
@@ -244,8 +244,8 @@ void parse_args(int argc, char* argv[]) {
       case 'q': QOS = atoi(optarg);                     break;
       case 's': PAYLOAD_SIZE = atoi(optarg);            break;
       case 'd': DROP_RATIO = atoi(optarg);              break;
-      case 'u': pubarg = parse_topic_list(PUBS, NUM_PUBS, optarg);    break;
-      case 't': subarg = parse_topic_list(SUBS, NUM_SUBS, optarg);    break;
+      case 'u': pubarg = parse_topic_list(PUBS, &NUM_PUBS, optarg);    break;
+      case 't': subarg = parse_topic_list(SUBS, &NUM_SUBS, optarg);    break;
       case 'v': LOG_ENABLE = 1;                         break;
       case 'h':
       default:
@@ -325,20 +325,30 @@ int main(int argc, char* argv[])
 
     /* Publish/Subscribe thread create */
     pthread_t sub_tid, pub_tid;
-    pthread_create(&sub_tid, NULL, subscribe_thread, NULL);
+    for (int i = 0; i < NUM_SUBS; i++) {
+      pthread_create(&sub_tid, NULL, subscribe_thread, NULL);
+    }
     usleep(STARTUP_WAIT);
-    pthread_create(&pub_tid, NULL, publish_thread, NULL);
+    for (int i = 0; i < NUM_PUBS; i++) {
+      pthread_create(&pub_tid, NULL, publish_thread, NULL);
+    }
 
     /* Merge all threads */
-    pthread_join(pub_tid, NULL);
-    pthread_join(sub_tid, NULL);
+    for (int i = 0; i < NUM_PUBS; i++) {
+      pthread_join(pub_tid, NULL);
+    }
+    for (int i = 0; i < NUM_SUBS; i++) {
+      pthread_join(sub_tid, NULL);
+    }
 
     if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)  {
         ERR("Failed to disconnect, return code %d\n", rc);
         rc = EXIT_FAILURE;
     }
 
-    summary_stats(rtt_ts);
+    if (rtt_ts) {
+      summary_stats(rtt_ts);
+    }
 
 destroy_exit:
     MQTTClient_destroy(&client);
