@@ -1,3 +1,4 @@
+from .common import construct_deploy
 
 def _parse_sub(subparsers):
     parser = subparsers.add_parser("local_isolated",
@@ -8,8 +9,10 @@ def _main(args, script_fmt):
     fields = {}
     fields["pub"] = "topic"
     fields["sub"] = fields["pub"]
-    script_str = "cd mqtt-benchmark; " + script_fmt.format(**fields)
-
-
-    deploy_cmd = "hc cmd --sync -x \"{}\"". format(script_str)
+    cmd_list = [
+        "cd mqtt-benchmark",
+        script_fmt.format(**fields)
+    ]
+    
+    deploy_cmd = construct_deploy (cmd_list, args.devices, sync=True)
     print(deploy_cmd)

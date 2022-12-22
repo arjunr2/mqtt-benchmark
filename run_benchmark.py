@@ -73,18 +73,11 @@ if __name__ == '__main__':
     # Merge config info
     args = Namespace(**vars(args), **config_info, devices=devices)
     # Bench Main only needs to change pub, sub formats topics 
-    script_fmt = "./benchmark --broker={address} --name={name} --interval={interval} "\
-        "--iterations={it} --size={size} --pub={{pub}} --sub={{sub}} --qos={qos} "\
-        "--drop-ratio={drop} {log}".format(
-                address = "{}{}:{}".format(args.broker, args.domain, args.mqtt_port),
-                name = "\`uuidgen\`",
-                interval = args.interval,
-                it = args.iterations,
-                size = args.size,
-                qos = args.qos,
-                drop = args.drop_ratio,
-                log = args.log
-            )
+    address = f"{args.broker}{args.domain}:{args.mqtt_port}"
+    name = "\`uuidgen\`"
+    script_fmt = f"./benchmark --broker={address} --name={name} --interval={args.interval} "\
+        f"--iterations={args.iterations} --size={args.size} --pub={{pub}} --sub={{sub}} "\
+        f"--qos={args.qos} --drop-ratio={args.drop_ratio} {args.log}"
 
     args._bench_main(args, script_fmt)
     
