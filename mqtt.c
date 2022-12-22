@@ -215,7 +215,6 @@ static struct option long_options[] = {
   {"pub", optional_argument, NULL, 'u'},
   {"sub", optional_argument, NULL, 't'},
   {"drop-ratio", optional_argument, NULL, 'd'},
-  {"topic", optional_argument, NULL, 't'},
   {"log", no_argument, NULL, 'v'},
   {"help", no_argument, NULL, 'h'}
 };
@@ -251,7 +250,7 @@ void parse_args(int argc, char* argv[]) {
       default:
         ERR("Usage: %s [--broker=BROKER (str)] [--name=NAME (str)] "
                       "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
-                      "[--qos=QOS (int)] [--drop-ratio (int)] [--size=SIZE (int)] "
+                      "[--qos=QOS (int)] [--drop-ratio=DROP (int)] [--size=SIZE (int)] "
                       "[--pub=TOPIC1,TOPIC2,.. (str)] "
                       "[--sub=TOPIC1,TOPIC2,.. (str)] [--log]\n", 
                       argv[0]);
