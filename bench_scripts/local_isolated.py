@@ -2,8 +2,14 @@
 def _parse_sub(subparsers):
     parser = subparsers.add_parser("local_isolated",
             help="RTT same node simultaneously on non-interfering topics")
-    parser.add_argument('value', help="Some value for no isolated")
     return parser
 
-def _main(args):
-    print(args)
+def _main(args, script_fmt):
+    fields = {}
+    fields["pub"] = "topic"
+    fields["sub"] = fields["pub"]
+    script_str = "cd mqtt-benchmark; " + script_fmt.format(**fields)
+
+
+    deploy_cmd = "hc cmd --sync -x \"{}\"". format(script_str)
+    print(deploy_cmd)

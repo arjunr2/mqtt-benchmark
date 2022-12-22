@@ -38,7 +38,8 @@ def _parse_main():
             nargs='?', default = 5, type = int, 
             help = "Percentage of outlier sample data to drop. "
             "Drops equally from min and max")
-    p.add_argument("--log", action = "store_true",
+    p.add_argument("--log", action = "store_const", default="",
+            const="--log",
             help = "Print log messages")
     p.add_argument("--outfile", 
             nargs='?', default = None,  
@@ -71,7 +72,21 @@ if __name__ == '__main__':
 
     # Merge config info
     args = Namespace(**vars(args), **config_info, devices=devices)
-    args._bench_main(args)
+    # Bench Main only needs to change pub, sub formats topics 
+    script_fmt = "./benchmark --broker={address} --name={name} --interval={interval} "\
+        "--iterations={it} --size={size} --pub={{pub}} --sub={{sub}} --qos={qos} "\
+        "--drop-ratio={drop} {log}".format(
+                address = "{}{}:{}".format(args.broker, args.domain, args.mqtt_port),
+                name = "\`uuidgen\`",
+                interval = args.interval,
+                it = args.iterations,
+                size = args.size,
+                qos = args.qos,
+                drop = args.drop_ratio,
+                log = args.log
+            )
+
+    args._bench_main(args, script_fmt)
     
     
 
