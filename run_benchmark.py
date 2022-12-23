@@ -63,9 +63,6 @@ if __name__ == '__main__':
     p = _parse_main()
     args = p.parse_args()
 
-    if args.outfile is None:
-        args.outfile = args.benchmark + ".results"
-
     with open(args.config) as f:
         config_info = json.load(f)
         devices = get_device_list(config_info["manifest"])
@@ -74,7 +71,7 @@ if __name__ == '__main__':
     args = Namespace(**vars(args), **config_info, devices=devices)
     # Bench Main only needs to change pub, sub formats topics 
     address = f"{args.broker}{args.domain}:{args.mqtt_port}"
-    name = "\`uuidgen\`"
+    name = "\`hostname\`"
     script_fmt = f"./benchmark --broker={address} --name={name} --interval={args.interval} "\
         f"--iterations={args.iterations} --size={args.size} --pub={{pub}} --sub={{sub}} "\
         f"--qos={args.qos} --drop-ratio={args.drop_ratio} {args.log}"

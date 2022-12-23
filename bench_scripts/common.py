@@ -15,16 +15,14 @@ def construct_deploy (cmd_list, devices, sync=False):
                 f"cmd {sync_str} {device_str} -x \"{command_str}\""
     return deploy_cmd
 
-def deploy (cmd_list, devices, sync=False):
+def deploy (cmd_list, devices, sync=False, ignore_output=False):
     deploy_cmd = construct_deploy (cmd_list, devices, sync)
     print(deploy_cmd)
     proc = subprocess.Popen (deploy_cmd,
                             shell=True,
                             stdout=subprocess.PIPE,
-                            stderr=sys.stderr,#subprocess.PIPE,
+                            stderr=sys.stderr,
                             universal_newlines=True)
     stdout, stderr = proc.communicate()
-    print(stdout)
-    #with open("output.txt", "w") as f:
-    #    f.write(stdout)
+    return stdout
 
