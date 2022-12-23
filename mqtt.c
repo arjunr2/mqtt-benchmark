@@ -13,7 +13,7 @@
 
 #define MAX_TOPICS 1000
 #define MS 1000
-#define STARTUP_WAIT 100*MS
+#define STARTUP_WAIT 10*MS
 #define DROP_IDX(x) ((x * DROP_RATIO)/100)
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
 #define ERR(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
