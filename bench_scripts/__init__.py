@@ -1,1 +1,1 @@
-__all__ = ["local_isolated", "local_nointerference"]
+__all__ = ["rtt_isolated", "rtt_nointerference"]

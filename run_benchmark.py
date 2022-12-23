@@ -1,12 +1,14 @@
 import json
 import pandas as pd
+from pathlib import Path
+import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from bench_scripts import local_isolated, local_nointerference
+from bench_scripts import rtt_isolated, rtt_nointerference
 
 SCRIPTS = [
-    local_isolated,
-    local_nointerference
+    rtt_isolated,
+    rtt_nointerference
 ]
 
 def get_device_list(src):
@@ -41,9 +43,6 @@ def _parse_main():
     p.add_argument("--log", action = "store_const", default="",
             const="--log",
             help = "Print log messages")
-    p.add_argument("--outfile", 
-            nargs='?', default = None,  
-            help = "Output file path")
 
 
     subparsers = p.add_subparsers(title="Benchmarks",
@@ -69,6 +68,9 @@ if __name__ == '__main__':
 
     # Merge config info
     args = Namespace(**vars(args), **config_info, devices=devices)
+    
+    os.makedirs(args.log_dir, exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True)
     # Bench Main only needs to change pub, sub formats topics 
     address = f"{args.broker}{args.domain}:{args.mqtt_port}"
     name = "\`hostname\`"
@@ -76,7 +78,14 @@ if __name__ == '__main__':
         f"--iterations={args.iterations} --size={args.size} --pub={{pub}} --sub={{sub}} "\
         f"--qos={args.qos} --drop-ratio={args.drop_ratio} {args.log}"
 
-    args._bench_main(args, script_fmt)
+    # Get deployment log
+    log_out = args._bench_main(args, script_fmt)
+
+    fbasename = f"{args.benchmark}_m{args.interval}_s{args.iterations}"
+    logfile = Path(args.log_dir) / f"{fbasename}.log"
+    outfile = Path(args.out_dir) / f"{fbasename}.out"
+    with open(logfile, "w") as f:
+        f.write(log_out)
     
     
 
