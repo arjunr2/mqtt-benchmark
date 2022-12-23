@@ -3,4 +3,8 @@
 shopt -s expand_aliases
 source ~/.alias
 
-hc cmd -x "[ ! -d \"mqtt-benchmark\" ] && git clone https://github.com/arjunr2/mqtt-benchmark.git; cd mqtt-benchmark; git pull; make"
+git pull
+hc cmd -x "mkdir -p mqtt-benchmark"
+hc cmd --action=put --src mqtt.c --dst mqtt-benchmark/mqtt.c
+hc cmd --action=put --src Makefile --dst mqtt-benchmark/Makefile
+hc cmd -x "cd mqtt-benchmark; make"
