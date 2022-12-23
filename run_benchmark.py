@@ -6,11 +6,12 @@ from itertools import product
 import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from bench_scripts import rtt_isolated, rtt_nointerference
+from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference
 
 SCRIPTS = [
     rtt_isolated,
-    rtt_nointerference
+    rtt_nointerference,
+    rtt_fullinterference
 ]
 
 def get_device_list(src):
