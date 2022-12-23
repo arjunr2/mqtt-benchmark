@@ -115,7 +115,7 @@ void *subscribe_thread(void *arg) {
   receive_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
   rtt_ts = (uint32_t*) calloc(MAX_ITER, sizeof(uint32_t));
 
-  printf("Subscribing: \"%s\" ;  QoS: %d\n", SUBS[0], QOS);
+  LOG("Subscribing: \"%s\" ;  QoS: %d\n", SUBS[0], QOS);
   if ((rc = MQTTClient_subscribe(client, SUBS[0], QOS)) != MQTTCLIENT_SUCCESS) {
     printf("Failed to subscribe, return code %d\n", rc);
     rc = EXIT_FAILURE;
