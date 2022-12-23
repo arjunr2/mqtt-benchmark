@@ -234,9 +234,9 @@ char* parse_topic_list(char** buf, int *ct, char* arg) {
 void parse_args(int argc, char* argv[]) {
   int opt;
   char *pubarg = "", *subarg = "";
-  while ((opt = getopt_long(argc, argv, "a:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "b:n:m:i:q:s:d:t:vh", long_options, NULL)) != -1) {
     switch(opt) {
-      case 'a': BROKER = strdup(optarg);                break;
+      case 'b': BROKER = strdup(optarg);                break;
       case 'n': CLIENTID = strdup(optarg);              break;
       case 'm': MSG_INTERVAL = atoi(optarg);            break;
       case 'i': MAX_ITER = atoi(optarg);                break;
@@ -248,6 +248,7 @@ void parse_args(int argc, char* argv[]) {
       case 'v': LOG_ENABLE = 1;                         break;
       case 'h':
       default:
+	ERR("Invalid opt: \"%c\"\n", opt);
         ERR("Usage: %s [--broker=BROKER (str)] [--name=NAME (str)] "
                       "[--interval=INTERVAL (us)] [--iterations=ITERATIONS (int)] "
                       "[--qos=QOS (int)] [--drop-ratio=DROP (int)] [--size=SIZE (int)] "

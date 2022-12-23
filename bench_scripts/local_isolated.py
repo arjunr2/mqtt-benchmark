@@ -1,4 +1,4 @@
-from .common import construct_deploy
+from .common import deploy
 
 def _parse_sub(subparsers):
     parser = subparsers.add_parser("local_isolated",
@@ -14,5 +14,4 @@ def _main(args, script_fmt):
         script_fmt.format(**fields)
     ]
     
-    deploy_cmd = construct_deploy (cmd_list, args.devices, sync=True)
-    print(deploy_cmd)
+    deploy (cmd_list, args.devices, sync=True)

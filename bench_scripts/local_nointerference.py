@@ -8,10 +8,10 @@ def _main(args, script_fmt):
     fields = {}
     fields["pub"] = "$TOPIC"
     fields["sub"] = fields["pub"]
-    script_str = [  "cd mqtt-benchmark",
-                    "TOPIC=uuidgen",
-                    script_fmt.format(**fields)
+    script_str = [
+        "cd mqtt-benchmark",
+        "TOPIC=uuidgen",
+        script_fmt.format(**fields)
     ]
 
-    deploy_cmd = "hc cmd -x \"{}\"".format('; '.join(script_str))
-    print(deploy_cmd)
+    deploy (cmd_list, args.devices)
