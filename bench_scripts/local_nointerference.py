@@ -1,3 +1,4 @@
+from .common import deploy
 
 def _parse_sub(subparsers):
     parser = subparsers.add_parser("local_nointerference",
@@ -6,11 +7,11 @@ def _parse_sub(subparsers):
 
 def _main(args, script_fmt):
     fields = {}
-    fields["pub"] = "$TOPIC"
+    fields["pub"] = "\$TOPIC"
     fields["sub"] = fields["pub"]
-    script_str = [
+    cmd_list = [
         "cd mqtt-benchmark",
-        "TOPIC=uuidgen",
+        "TOPIC=\`uuidgen\`",
         script_fmt.format(**fields)
     ]
 
