@@ -28,16 +28,18 @@ def extract_results(log_str):
     for node, data in agg_data.items():
         kmeans = KMeans(n_clusters=3).fit(np.reshape(data, (-1, 1)))
         centers = np.sort(kmeans.cluster_centers_.flatten().astype(int))
+        num_pts = len(data)
+        quarts = np.rint(np.percentile(data, [25,50,75])).astype(int)
 
         min_max = f"{int(data[0])}/{int(data[-1])}"
-        quarts = '/'.join(data[::len(data)//4][1:].astype(int).astype(str))
+        quarts_str = '/'.join(quarts.astype(str))
         centers_str = '/'.join(centers.astype(str))
         result_node = [
             node,
             np.mean(data, dtype=int),
             np.std(data, dtype=int),
             min_max,
-            quarts,
+            quarts_str,
             centers_str
         ]
         results.append(result_node)

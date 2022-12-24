@@ -65,8 +65,10 @@ def _parse_main():
         
     return p
 
-
-if __name__ == '__main__':
+'''
+    Generate all args
+'''
+def gen_args():
     p = _parse_main()
     args = p.parse_args()
 
@@ -76,6 +78,8 @@ if __name__ == '__main__':
 
     batch_info = {}
     arg_dict = vars(args)
+
+    # Read batch info
     if args.batch is not None:
         with open(args.batch, "r") as f:
             batch_info = yaml.safe_load(f)
@@ -83,11 +87,18 @@ if __name__ == '__main__':
             arg_dict.update(batch_info)
 
     args = Namespace(**arg_dict, **config_info, devices=devices)
-    
+    return args
+
+
+
+if __name__ == '__main__':    
+    args = gen_args()
+
+    # Create log/results dir
     os.makedirs(args.log_dir, exist_ok=True)
     os.makedirs(args.out_dir, exist_ok=True)
 
-    # Bench Main only needs to change pub, sub formats topics 
+    # Bench Main only needs to change pub, sub format topics 
     address = f"{args.broker}{args.domain}:{args.mqtt_port}"
     name = "\`hostname\`"
     for iterations, interval, size in product(args.iterations, args.interval, args.size):
@@ -95,22 +106,26 @@ if __name__ == '__main__':
             f"--iterations={iterations} --size={size} --pub={{pub}} --sub={{sub}} "\
             f"--qos={args.qos} --drop-ratio={args.drop_ratio} {args.log}"
 
-        # Get deployment log
-        log_out = args._bench_main(args, script_fmt)
-
         fbasename = f"{args.benchmark}_m{interval}_s{size}"
+
+        # Get deployment log
         logfile = Path(args.log_dir) / f"{fbasename}.log"
-        outfile = Path(args.out_dir) / f"{fbasename}.out"
+        log_out = args._bench_main(args, script_fmt)
         with open(logfile, "w") as f:
             f.write(log_out)
     
+        # Store results
         heading, results = extract_results(log_out)
-        # Format for pt.table
-        heading = [pt.render(x, pt.BOLD, pt.BR, pt.CYAN) for x in heading]
-        results = [[pt.render(x[0], pt.BOLD, pt.GREEN)] + x[1:] for x in results]
         results_out = pt.table([heading] + results, vline=False, heading=True, render=True)
-        print(results_out)
+        outfile = Path(args.out_dir) / f"{fbasename}.out"
         with open(outfile, "w") as f:
             f.write(results_out + '\n')
+
+
+        # Format for pt.table
+        heading_fmt = [pt.render(x, pt.BOLD, pt.BR, pt.CYAN) for x in heading]
+        results_fmt = [[pt.render(x[0], pt.BOLD, pt.GREEN)] + x[1:] for x in results]
+        results_out_fmt = pt.table([heading_fmt] + results_fmt, vline=False, heading=True, render=True)
+        print(results_out_fmt)
     
 
