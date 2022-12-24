@@ -14,7 +14,7 @@ def construct_deploy (cmd_list, devices, sync=False):
                 f"cmd {sync_str} {device_str} -x \"{command_str}\""
     return deploy_cmd
 
-
+# Return stdout if wait, else return proc instance
 def deploy (cmd_list, devices, sync=False, wait=True):
     deploy_cmd = construct_deploy (cmd_list, devices, sync)
     print(deploy_cmd)
@@ -26,6 +26,8 @@ def deploy (cmd_list, devices, sync=False, wait=True):
     if wait:
         stdout, stderr = proc.communicate()
         return stdout
+
+    return proc
 
 
 def kill_bench (devices):
