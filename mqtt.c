@@ -39,16 +39,16 @@ typedef uint64_t TS_TYPE;
 MQTTClient_deliveryToken deliveredtoken = -1;
 MQTTClient client;
  
-TS_TYPE *deliver_ts = NULL;
 TS_TYPE *receive_ts = NULL;
 uint32_t *rtt_ts = NULL;
 
 int done_sending = 0;
+int done_receiving = 0;
 
-#define ENCODE_PL(payload, val, sz) {  \
-  memcpy (payload + msg_pt, val, sz); \
-  msg_pt += (sz);  \
+#define ENCODE_PL(payload, off, val, sz) {  \
+  memcpy (payload + off, val, sz); \
 }
+
 #define DECODE_PL(val, payload, sz) { \
   memcpy (val, payload + msg_pt, sz); \
   msg_pt += (sz); \
@@ -67,37 +67,34 @@ void delivered(void *context, MQTTClient_deliveryToken dt) {
 }
  
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message) {
+  static uint32_t it = 0;
+  uint32_t pkt_no;
+  TS_TYPE deliver_time;
+
   /* Record current time */
   TS_TYPE receive_time = get_us_time();
 
   /* Payload format: [CLIENTID][packetctr][timestamp] */
-  char end_tok = *((char*)(message->payload));
-  char* client_id = message->payload + 1;
-  uint32_t it;
-  TS_TYPE deliver_time;
+  char* client_id = message->payload;
 
-  if (!strncmp(CLIENTID, client_id, strlen(CLIENTID))) {
-    /* Check if last message */
-    if (end_tok == END_TOKEN) {
-      LOG("End token received!\n");
-      done_sending = 1;
-    }
-    else {
-      uint32_t msg_pt = strlen(client_id) + 2;
-      /* Get receive time */
-      DECODE_PL(&it, message->payload, sizeof(it));
-      receive_ts[it] = receive_time;
+  uint32_t msg_pt = strlen(client_id) + 1;
 
-      /* Compute RTT */
-      DECODE_PL(&deliver_time, message->payload, sizeof(deliver_time));
-      rtt_ts[it] = receive_ts[it] - deliver_time;
-      LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
-              it, receive_ts[it], rtt_ts[it]);
-    } 
-  } 
-  else {
-      LOG("Message arrived [EXTERNAL]\n");
+  /* Packet counter (unused) */
+  DECODE_PL(&pkt_no, message->payload, sizeof(pkt_no));
+
+  /* Compute RTT */
+  DECODE_PL(&deliver_time, message->payload, sizeof(deliver_time));
+  receive_ts[it] = receive_time;
+  rtt_ts[it] = receive_time - deliver_time;
+  LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
+          it, receive_ts[it], rtt_ts[it]);
+
+  it++;
+  /* End subscribe thread once full */
+  if (it >= MAX_ITER) {
+    done_receiving = 1;
   }
+
   MQTTClient_freeMessage(&message);
   MQTTClient_free(topicName);
   return 1;
@@ -108,6 +105,7 @@ void connlost(void *context, char *cause) {
   printf("     cause: %s\n", cause);
 }
  
+
 /* Main Subscription Thread */
 void *subscribe_thread(void *arg) {
   int rc;
@@ -122,7 +120,7 @@ void *subscribe_thread(void *arg) {
     exit(rc);
   }
 
-  while (!done_sending) { usleep(1000); }
+  while (!done_receiving) { usleep(1000); }
   LOG("Unsubscribing!\n");
   if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
     printf("Failed to unsubscribe, return code %d\n", rc); 
@@ -130,6 +128,17 @@ void *subscribe_thread(void *arg) {
   }
 }
 
+
+/* Publish routine */
+#define PUBLISH_MESSAGE() \
+  if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
+      printf("Failed to publish message, return code %d\n", rc);  \
+      rc = EXIT_FAILURE;  \
+      goto finish_publish; \
+  } else {  \
+      LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts); \
+      if (QOS != 0) { while (deliveredtoken != token) { };  } \
+  }
 
 /* Main Publisher Thread */
 void *publish_thread(void *arg) {
@@ -143,14 +152,9 @@ void *publish_thread(void *arg) {
   }
   payload[PAYLOAD_SIZE-1] = 0;
   
-  /* Payload format: [END/SEND][CLIENTID][packetctr][timestamp] */
-  uint32_t msg_pt = 0;
-  char send_tok = '*';
-  ENCODE_PL (payload, &send_tok, sizeof(send_tok)); 
-  ENCODE_PL (payload, CLIENTID, strlen(CLIENTID) + 1);
-
-  /* Init send timestamps */
-  deliver_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
+  /* Payload format: [CLIENTID][packetctr][timestamp] */
+  ENCODE_PL (payload, 0, CLIENTID, strlen(CLIENTID) + 1);
+  uint32_t bptr = strlen(CLIENTID) + 1;
 
   /* Publish Message Characteristics */
   MQTTClient_message pubmsg = MQTTClient_message_initializer;
@@ -159,46 +163,22 @@ void *publish_thread(void *arg) {
   pubmsg.qos = QOS;
   pubmsg.retained = 0;
 
-  /* Publish routine */
-  #define PUBLISH_MESSAGE() \
-    if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
-        printf("Failed to publish message, return code %d\n", rc);  \
-        rc = EXIT_FAILURE;  \
-        goto finish_publish; \
-    } else {  \
-        LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts[it]); \
-        if (QOS != 0) { while (deliveredtoken != token) { };  } \
-    }
-
-  #define PUBLISH_MESSAGE_END() \
-    if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
-        printf("Failed to publish message, return code %d\n", rc);  \
-        rc = EXIT_FAILURE;  \
-        goto finish_publish; \
-    } else {  \
-        LOG("Message publish END\n"); \
-        if (QOS != 0) { while (deliveredtoken != token) { };  } \
-    }
-
   LOG("Publishing: %s\n", PUBS[0]);
-  uint32_t it;
-  for (it = 0; it < MAX_ITER; it++) {
+  uint32_t it = 0;
+  while (!done_sending) {
     deliveredtoken = 0;
     /* Append timestamp and counter to payload */
-    deliver_ts[it] = get_us_time();
-    msg_pt = strlen(CLIENTID) + 2;
-    ENCODE_PL (payload, &it, sizeof(it));
-    ENCODE_PL (payload, &deliver_ts[it], sizeof(deliver_ts[it]));
+    TS_TYPE deliver_ts = get_us_time();
+    uint32_t ptr = bptr;
+    ENCODE_PL (payload, ptr, &it, sizeof(it));
+    ptr += sizeof(it);
+    ENCODE_PL (payload, ptr, &deliver_ts, sizeof(deliver_ts));
 
     PUBLISH_MESSAGE();
     /* Wait interval */
     usleep(MSG_INTERVAL);
+    it++;
   }
-
-  /* Send END_TOKEN to subscribe thread with QOS 2 */
-  pubmsg.qos = 2;
-  payload[0] = END_TOKEN;
-  PUBLISH_MESSAGE_END();
 
 finish_publish:
   return NULL;  
@@ -334,20 +314,20 @@ int main(int argc, char* argv[])
     }
 
     /* Merge all threads */
-    for (int i = 0; i < NUM_PUBS; i++) {
-      pthread_join(pub_tid, NULL);
-    }
     for (int i = 0; i < NUM_SUBS; i++) {
       pthread_join(sub_tid, NULL);
     }
+    if (rtt_ts) {
+      summary_stats(rtt_ts);
+    }
+    for (int i = 0; i < NUM_PUBS; i++) {
+      pthread_join(pub_tid, NULL);
+    }
 
+    LOG("Disconnecting MQTT\n");
     if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)  {
         ERR("Failed to disconnect, return code %d\n", rc);
         rc = EXIT_FAILURE;
-    }
-
-    if (rtt_ts) {
-      summary_stats(rtt_ts);
     }
 
 destroy_exit:
