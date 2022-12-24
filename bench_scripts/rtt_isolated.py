@@ -6,12 +6,9 @@ def _parse_sub(subparsers):
     return parser
 
 def _main(args, script_fmt):
-    fields = {}
-    fields["pub"] = "topic"
-    fields["sub"] = fields["pub"]
     cmd_list = [
         "cd mqtt-benchmark",
-        script_fmt.format(**fields)
+        script_fmt.format(pub="topic", sub="topic")
     ]
     
     return deploy (cmd_list, args.devices, sync=True)

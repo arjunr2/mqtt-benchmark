@@ -5,7 +5,6 @@ import sys
 '''
     Common helpers for benchmark creation
 '''
-
 def construct_deploy (cmd_list, devices, sync=False):
     command_str = '; '.join(cmd_list)
     sync_str = "--sync" if sync else ""
@@ -15,7 +14,8 @@ def construct_deploy (cmd_list, devices, sync=False):
                 f"cmd {sync_str} {device_str} -x \"{command_str}\""
     return deploy_cmd
 
-def deploy (cmd_list, devices, sync=False, ignore_output=False):
+
+def deploy (cmd_list, devices, sync=False, wait=True):
     deploy_cmd = construct_deploy (cmd_list, devices, sync)
     print(deploy_cmd)
     proc = subprocess.Popen (deploy_cmd,
@@ -23,6 +23,12 @@ def deploy (cmd_list, devices, sync=False, ignore_output=False):
                             stdout=subprocess.PIPE,
                             stderr=sys.stderr,
                             universal_newlines=True)
-    stdout, stderr = proc.communicate()
-    return stdout
+    if wait:
+        stdout, stderr = proc.communicate()
+        return stdout
+
+
+def kill_bench (devices):
+    cmd = ["pkill -f benchmark"]
+    deploy (cmd, devices)
 
