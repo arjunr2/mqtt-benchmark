@@ -1,12 +1,14 @@
 import json
 import yaml
 import pandas as pd
+import printtools as pt
 from pathlib import Path
 from itertools import product
 import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference
+from postprocess import extract_results
 
 SCRIPTS = [
     rtt_isolated,
@@ -102,5 +104,13 @@ if __name__ == '__main__':
         with open(logfile, "w") as f:
             f.write(log_out)
     
+        heading, results = extract_results(log_out)
+        # Format for pt.table
+        heading = [pt.render(x, pt.BOLD, pt.BR, pt.CYAN) for x in heading]
+        results = [[pt.render(x[0], pt.BOLD, pt.GREEN)] + x[1:] for x in results]
+        results_out = pt.table([heading] + results, vline=False, heading=True, render=True)
+        print(results_out)
+        with open(outfile, "w") as f:
+            f.write(results_out + '\n')
     
 

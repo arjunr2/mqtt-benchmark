@@ -1,7 +1,6 @@
 import sys
 import re
 import io
-import printtools as pt
 import numpy as np
 from collections import OrderedDict
 from sklearn.cluster import KMeans
@@ -11,7 +10,8 @@ def extract_results(log_str):
     lines = log_str.splitlines()
     pat = re.compile(r"\[(hc-\d+)\]")
 
-    headings = ["Device", "Mean", "Std Dev", "Min/Max", "Q1/Q2/Q3", "Kmeans"]
+    heading = ["Device", "Mean", "SD", "Min/Max", "Q1/Q2/Q3", "Kmeans"]
+
     agg_data = OrderedDict()
     for i, line in enumerate(lines):
         match = pat.match(line)
@@ -20,7 +20,9 @@ def extract_results(log_str):
             data_m = re.search(r"Data Pts: (.*)", data_line)
             node = match.group(1)
             data_node = np.array(data_m.group(1).split(',')[:-1]).astype(int)
-            agg_data[node] = np.concatenate((agg_data.get(node, np.array([])), data_node))
+            agg_data[node] = np.concatenate(
+                    (agg_data.get(node, np.array([])), 
+                        data_node))
 
     results = []
     for node, data in agg_data.items():
@@ -39,6 +41,8 @@ def extract_results(log_str):
             centers_str
         ]
         results.append(result_node)
+
+    return heading, results
 
 
 def main():
