@@ -118,7 +118,6 @@ if __name__ == '__main__':
     
         # Store results
         heading, results = extract_results(log_out)
-        print(len(results))
         results_out = pt.table([heading] + results, vline=False, heading=True, render=True)
         outfile = Path(args.out_dir) / f"{fbasename}.out"
         with open(outfile, "w") as f:

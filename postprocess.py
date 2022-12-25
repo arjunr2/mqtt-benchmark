@@ -26,6 +26,7 @@ def extract_results(log_str):
 
     results = []
     for node, data in agg_data.items():
+        data = np.sort(data)
         kmeans = KMeans(n_clusters=3).fit(np.reshape(data, (-1, 1)))
         centers = np.sort(kmeans.cluster_centers_.flatten().astype(int))
         num_pts = len(data)
