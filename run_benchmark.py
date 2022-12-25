@@ -8,14 +8,15 @@ import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference, \
-    one_to_one_isolated
+    one_to_one_isolated, fan_in
 from postprocess import extract_results
 
 SCRIPTS = [
     rtt_isolated,
     rtt_nointerference,
     rtt_fullinterference,
-    one_to_one_isolated
+    one_to_one_isolated,
+    fan_in
 ]
 
 def get_device_list(src):
@@ -103,6 +104,7 @@ if __name__ == '__main__':
     # Bench Main only needs to change pub, sub format topics 
     address = f"{args.broker}{args.domain}:{args.mqtt_port}"
     name = "\`hostname\`"
+    pt.print("MQTT !", pt.YELLOW, pt.SLANT)
     for iterations, interval, size in product(args.iterations, args.interval, args.size):
         pt.print(f"Iterations: {iterations} | Interval: {interval} | Size:  {size}", pt.YELLOW, pt.BOLD)
         script_fmt = f"./benchmark --broker={address} --name={name} --interval={interval} "\
