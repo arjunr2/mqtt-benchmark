@@ -121,10 +121,13 @@ void *subscribe_thread(void *arg) {
   }
 
   while (!done_receiving) { usleep(1000); }
+  // Finish sending also if both pub-sub
+  done_sending = 1;
   LOG("Unsubscribing!\n");
   if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
     printf("Failed to unsubscribe, return code %d\n", rc); 
     rc = EXIT_FAILURE; 
+    exit(rc);
   }
 }
 
@@ -134,6 +137,7 @@ void *subscribe_thread(void *arg) {
   if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
       printf("Failed to publish message, return code %d\n", rc);  \
       rc = EXIT_FAILURE;  \
+      exit(rc); \
       goto finish_publish; \
   } else {  \
       LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts); \
