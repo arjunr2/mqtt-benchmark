@@ -71,27 +71,28 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
   uint32_t pkt_no;
   TS_TYPE deliver_time;
 
-  /* Record current time */
-  TS_TYPE receive_time = get_us_time();
-
-  /* Payload format: [CLIENTID][packetctr][timestamp] */
-  char* client_id = message->payload;
-
-  uint32_t msg_pt = strlen(client_id) + 1;
-
-  /* Packet counter (unused) */
-  DECODE_PL(&pkt_no, message->payload, sizeof(pkt_no));
-
-  /* Compute RTT */
-  DECODE_PL(&deliver_time, message->payload, sizeof(deliver_time));
-  receive_ts[it] = receive_time;
-  rtt_ts[it] = receive_time - deliver_time;
-  LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
-          it, receive_ts[it], rtt_ts[it]);
-
-  it++;
   /* End subscribe thread once full */
-  if (it >= MAX_ITER) {
+  if (it < MAX_ITER) {
+    /* Record current time */
+    TS_TYPE receive_time = get_us_time();
+
+    /* Payload format: [CLIENTID][packetctr][timestamp] */
+    char* client_id = message->payload;
+
+    uint32_t msg_pt = strlen(client_id) + 1;
+
+    /* Packet counter (unused) */
+    DECODE_PL(&pkt_no, message->payload, sizeof(pkt_no));
+
+    /* Compute RTT */
+    DECODE_PL(&deliver_time, message->payload, sizeof(deliver_time));
+    receive_ts[it] = receive_time;
+    rtt_ts[it] = receive_time - deliver_time;
+    LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
+            it, receive_ts[it], rtt_ts[it]);
+
+    it++;
+  } else {
     done_receiving = 1;
   }
 
