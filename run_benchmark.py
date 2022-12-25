@@ -104,6 +104,7 @@ if __name__ == '__main__':
     address = f"{args.broker}{args.domain}:{args.mqtt_port}"
     name = "\`hostname\`"
     for iterations, interval, size in product(args.iterations, args.interval, args.size):
+        pt.print(f"Iterations: {iterations} | Interval: {interval} | Size:  {size}", pt.YELLOW, pt.BOLD)
         script_fmt = f"./benchmark --broker={address} --name={name} --interval={interval} "\
             f"--iterations={iterations} --size={size} --pub={{pub}} --sub={{sub}} "\
             f"--qos={args.qos} --drop-ratio={args.drop_ratio} {args.log}"
@@ -127,7 +128,7 @@ if __name__ == '__main__':
         # Format for pt.table
         heading_fmt = [pt.render(x, pt.BOLD, pt.BR, pt.CYAN) for x in heading]
         results_fmt = [[pt.render(x[0], pt.BOLD, pt.GREEN)] + x[1:] for x in results]
-        results_out_fmt = pt.table([heading_fmt] + results_fmt, vline=False, heading=True, render=True)
-        print(results_out_fmt)
+        pt.table([heading_fmt] + results_fmt, vline=False, heading=True)
+        print("\n")
     
 
