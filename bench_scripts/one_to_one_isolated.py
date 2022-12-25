@@ -1,4 +1,4 @@
-from .common import deploy
+from .common import deploy, kill_bench
 from itertools import combinations
 
 def _parse_sub(subparsers):
@@ -13,20 +13,17 @@ def _main(args, script_fmt):
     ]
     pub_cmds = [
         "cd mqtt-benchmark",
-        script_fmt.format(pub"topic", sub="")
+        script_fmt.format(pub="topic", sub="")
     ]
 
     outs = []
-    combs = combinations(args.devices, 2)
-    for d1, d2 in combs:
+    combs = list(combinations(args.devices, 2))
+    all_combs = combs + [t[::-1] for t in combs]
+    for d1, d2 in all_combs:
         p = deploy (sub_cmds, [d1], wait=False)
         deploy (pub_cmds, [d2], wait=False)
         stdout, stderr = p.communicate()
-        outs.append(stdout)
-
-        p = deploy (sub_cmds, [d2], wait=False)
-        deploy (pub_cmds, [d1], wait=False)
-        stdout, stderr = p.communicate()
+        kill_bench ([d2])
         outs.append(stdout)
 
     return '\n'.join(outs)

@@ -7,13 +7,15 @@ from itertools import product
 import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference
+from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference, \
+    one_to_one_isolated
 from postprocess import extract_results
 
 SCRIPTS = [
     rtt_isolated,
     rtt_nointerference,
-    rtt_fullinterference
+    rtt_fullinterference,
+    one_to_one_isolated
 ]
 
 def get_device_list(src):
@@ -116,6 +118,7 @@ if __name__ == '__main__':
     
         # Store results
         heading, results = extract_results(log_out)
+        print(len(results))
         results_out = pt.table([heading] + results, vline=False, heading=True, render=True)
         outfile = Path(args.out_dir) / f"{fbasename}.out"
         with open(outfile, "w") as f:
