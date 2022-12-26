@@ -131,6 +131,13 @@ void connlost(void *context, char *cause) {
   } \
 }
 
+#define UNSUBSCRIBE(sub) {  \
+  if ((rc = MQTTClient_unsubscribe(client, sub)) != MQTTCLIENT_SUCCESS) { \
+    printf("Failed to unsubscribe, return code %d\n", rc);  \
+    rc = EXIT_FAILURE;  \
+    exit(rc); \
+  } \
+}
 
 #define PUBLOG() \
   LOG("Message publish success (%d) | Send time: %lu\n", it, deliver_ts); \
@@ -163,13 +170,11 @@ void *subscribe_thread(void *arg) {
 
   /* Wait til receive buffer fills up. Signalled on msgarrv */
   sem_wait (&done_receiving);
+  /* Stop local publish threads when sub ends  */
+  sem_post (&stop_publish);
 
   LOG("Unsubscribing!\n");
-  if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
-    printf("Failed to unsubscribe, return code %d\n", rc); 
-    rc = EXIT_FAILURE; 
-    exit(rc);
-  }
+  UNSUBSCRIBE (SUBS[0]);
 }
 
 
@@ -217,6 +222,8 @@ void *publish_thread(void *arg) {
     usleep(MSG_INTERVAL);
     it++;
   } while (sem_trywait(&stop_publish));
+
+  UNSUBSCRIBE (pubkill);
 
   return NULL;  
 }
