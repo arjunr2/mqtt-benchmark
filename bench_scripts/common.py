@@ -1,6 +1,7 @@
 import subprocess
 import shlex
 import sys
+import paho.mqtt.client as paho
 
 '''
     Common helpers for benchmark creation
@@ -30,7 +31,17 @@ def deploy (cmd_list, devices, sync=False, wait=True):
     return proc
 
 
-def kill_bench (devices):
-    cmd = ["pkill -f benchmark"]
-    deploy (cmd, devices)
+def pub_callback(client, userdata, result):
+    print("Pubkill sent successfully!\n")
+
+# Publishes message to 'pubkill' 
+def kill_pubs (broker, port):
+    client = paho.Client("manager")
+    client.connect(broker, port)
+    client.on_publish(pub_callback)
+    res, mid = client.publish ("pubkill", "kill", qos=1)
+    if res:
+        raise ValueError("Failure: Publish to pubkill")
+    client.disconnect()
+
 
