@@ -19,7 +19,9 @@
 #define LOG(...) do { if(LOG_ENABLE) printf(__VA_ARGS__); } while(0)
 #define ERR(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
 
-const char END_TOKEN = '$';
+/* topics to signal thread kill */
+const char* pubkill = "pubkill";
+const char* subkill = "subkill";
   
 char* BROKER = "localhost:1883";
 char* CLIENTID = "test-client";
@@ -45,6 +47,7 @@ uint32_t *rtt_ts = NULL;
 
 sem_t stop_publish;
 sem_t done_receiving;
+sem_t qos1_pubmutex;
 
 #define ENCODE_PL(payload, off, val, sz) {  \
   memcpy (payload + off, val, sz); \
@@ -63,6 +66,8 @@ static uint64_t inline get_us_time() {
 }
 
 void delivered(void *context, MQTTClient_deliveryToken dt) {
+  /* Wait till last delivered thread acknowledges deliver token */
+  sem_wait (&qos1_pubmutex);
   LOG("Message with token value %d delivery confirmed\n", dt);
   deliveredtoken = dt;
 }
@@ -71,8 +76,15 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
   static uint32_t it = 0;
   uint32_t pkt_no;
   TS_TYPE deliver_time;
+  
+  /* Only for publish threads: If sync message arrives, kill publisher */
+  if (!strcmp(topicName, pubkill)) {
+    LOG("Pubkill received!\n");
+    sem_post (&stop_publish);
+    goto free_message;
+  }
 
-  /* End subscribe thread once full */
+  /* Only for subscribe threads: Record time until buffer full */
   if (it < MAX_ITER) {
     /* Record current time */
     TS_TYPE receive_time = get_us_time();
@@ -92,13 +104,14 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
     LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
             it, receive_ts[it], rtt_ts[it]);
 
-  } else {
-    if (it == MAX_ITER) {
-      sem_post (&done_receiving);
-    }
+  }
+  else {
+    /* If buffer is full, signal to end subscription */
+    if (it == MAX_ITER) { sem_post (&done_receiving); }
   }
   it++;
 
+free_message:
   MQTTClient_freeMessage(&message);
   MQTTClient_free(topicName);
   return 1;
@@ -109,25 +122,48 @@ void connlost(void *context, char *cause) {
   printf("     cause: %s\n", cause);
 }
  
+#define SUBSCRIBE(sub, qos) { \
+  LOG("Subscribing: \"%s\" ;  QoS: %d\n", sub, qos);  \
+  if ((rc = MQTTClient_subscribe(client, sub, qos)) != MQTTCLIENT_SUCCESS) {  \
+    printf("Failed to subscribe, return code %d\n", rc);  \
+    rc = EXIT_FAILURE;  \
+    exit(rc); \
+  } \
+}
+
+
+#define PUBLOG() \
+  LOG("Message publish success (%d) | Send time: %lu\n", it, deliver_ts); \
+
+/* Publish routine */
+#define PUBLISH_MESSAGE(pub, qos, logsync) { \
+  if ((rc = MQTTClient_publishMessage(client, pub, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
+      printf("Failed to publish message, return code %d\n", rc);  \
+      rc = EXIT_FAILURE;  \
+      exit(rc); \
+  } else {  \
+      PUB##logsync();  \
+      if (qos != 0) { \
+        while (deliveredtoken != token) { };  \
+        sem_post (&qos1_pubmutex); \
+      } \
+  } \
+}
 
 /* Main Subscription Thread */
 void *subscribe_thread(void *arg) {
   int rc;
+  MQTTClient_deliveryToken token;
+
   /* Init receive timestamps and RTT */
   receive_ts = (TS_TYPE*) calloc(MAX_ITER, sizeof(TS_TYPE));
   rtt_ts = (uint32_t*) calloc(MAX_ITER, sizeof(uint32_t));
 
-  LOG("Subscribing: \"%s\" ;  QoS: %d\n", SUBS[0], QOS);
-  if ((rc = MQTTClient_subscribe(client, SUBS[0], QOS)) != MQTTCLIENT_SUCCESS) {
-    printf("Failed to subscribe, return code %d\n", rc);
-    rc = EXIT_FAILURE;
-    exit(rc);
-  }
+  SUBSCRIBE (SUBS[0], QOS);
 
+  /* Wait til receive buffer fills up. Signalled on msgarrv */
   sem_wait (&done_receiving);
 
-  // Finish publish also if both pub-sub
-  sem_post (&stop_publish);
   LOG("Unsubscribing!\n");
   if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
     printf("Failed to unsubscribe, return code %d\n", rc); 
@@ -136,18 +172,6 @@ void *subscribe_thread(void *arg) {
   }
 }
 
-
-/* Publish routine */
-#define PUBLISH_MESSAGE() \
-  if ((rc = MQTTClient_publishMessage(client, PUBS[0], &pubmsg, &token)) != MQTTCLIENT_SUCCESS) { \
-      printf("Failed to publish message, return code %d\n", rc);  \
-      rc = EXIT_FAILURE;  \
-      exit(rc); \
-      goto finish_publish; \
-  } else {  \
-      LOG("Message publish (%d) | Send time: %lu\n", it, deliver_ts); \
-      if (QOS != 0) { while (deliveredtoken != token) { };  } \
-  }
 
 /* Main Publisher Thread */
 void *publish_thread(void *arg) {
@@ -172,10 +196,13 @@ void *publish_thread(void *arg) {
   pubmsg.qos = QOS;
   pubmsg.retained = 0;
 
+  /* Topic to signal killing of this thread */
+  SUBSCRIBE (pubkill, 1);
+
+  /* Keep publishing until stop_publish signalled.
+  * Only happens when external source publishes to 'pubkill' */
   LOG("Publishing: %s\n", PUBS[0]);
   uint32_t it = 0;
-
-  /* Keep publishing until stop_publish signalled */
   do {
     deliveredtoken = 0;
     /* Append timestamp and counter to payload */
@@ -185,13 +212,12 @@ void *publish_thread(void *arg) {
     ptr += sizeof(it);
     ENCODE_PL (payload, ptr, &deliver_ts, sizeof(deliver_ts));
 
-    PUBLISH_MESSAGE();
+    PUBLISH_MESSAGE (PUBS[0], QOS, LOG);
     /* Wait interval */
     usleep(MSG_INTERVAL);
     it++;
   } while (sem_trywait(&stop_publish));
 
-finish_publish:
   return NULL;  
 }
 
@@ -317,6 +343,7 @@ int main(int argc, char* argv[])
     /* Publish/Subscribe thread create and semaphores */
     sem_init(&done_receiving, 0, 0);
     sem_init(&stop_publish, 0, 0);
+    sem_init(&qos1_pubmutex, 0, 1);
 
     pthread_t sub_tid, pub_tid;
     for (int i = 0; i < NUM_SUBS; i++) {
@@ -329,6 +356,7 @@ int main(int argc, char* argv[])
 
     sem_destroy (&done_receiving);
     sem_destroy (&stop_publish);
+    sem_destroy (&qos1_pubmutex);
 
     /* Merge all threads */
     for (int i = 0; i < NUM_SUBS; i++) {
