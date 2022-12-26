@@ -77,6 +77,9 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
   uint32_t pkt_no;
   TS_TYPE deliver_time;
   
+  /* Record current time */
+  TS_TYPE receive_time = get_us_time();
+
   /* Only for publish threads: If sync message arrives, kill publisher */
   if (!strcmp(topicName, pubkill)) {
     LOG("Pubkill received!\n");
@@ -86,9 +89,6 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
 
   /* Only for subscribe threads: Record time until buffer full */
   if (it < MAX_ITER) {
-    /* Record current time */
-    TS_TYPE receive_time = get_us_time();
-
     /* Payload format: [CLIENTID][packetctr][timestamp] */
     char* client_id = message->payload;
 
