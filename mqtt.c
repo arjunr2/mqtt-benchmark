@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <getopt.h>
 #include <math.h>
+#include <semaphore.h>
 
 #include "MQTTClient.h"
 
@@ -42,8 +43,8 @@ MQTTClient client;
 TS_TYPE *receive_ts = NULL;
 uint32_t *rtt_ts = NULL;
 
-int done_sending = 0;
-int done_receiving = 0;
+sem_t stop_publish;
+sem_t done_receiving;
 
 #define ENCODE_PL(payload, off, val, sz) {  \
   memcpy (payload + off, val, sz); \
@@ -91,10 +92,12 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
     LOG("Message arrived (%d) | Recv time: %lu (RTT = %u us)\n", 
             it, receive_ts[it], rtt_ts[it]);
 
-    it++;
   } else {
-    done_receiving = 1;
+    if (it == MAX_ITER) {
+      sem_post (&done_receiving);
+    }
   }
+  it++;
 
   MQTTClient_freeMessage(&message);
   MQTTClient_free(topicName);
@@ -121,9 +124,10 @@ void *subscribe_thread(void *arg) {
     exit(rc);
   }
 
-  while (!done_receiving) { usleep(1000); }
-  // Finish sending also if both pub-sub
-  done_sending = 1;
+  sem_wait (&done_receiving);
+
+  // Finish publish also if both pub-sub
+  sem_post (&stop_publish);
   LOG("Unsubscribing!\n");
   if ((rc = MQTTClient_unsubscribe(client, SUBS[0])) != MQTTCLIENT_SUCCESS) {
     printf("Failed to unsubscribe, return code %d\n", rc); 
@@ -170,7 +174,9 @@ void *publish_thread(void *arg) {
 
   LOG("Publishing: %s\n", PUBS[0]);
   uint32_t it = 0;
-  while (!done_sending) {
+
+  /* Keep publishing until stop_publish signalled */
+  do {
     deliveredtoken = 0;
     /* Append timestamp and counter to payload */
     TS_TYPE deliver_ts = get_us_time();
@@ -183,7 +189,7 @@ void *publish_thread(void *arg) {
     /* Wait interval */
     usleep(MSG_INTERVAL);
     it++;
-  }
+  } while (sem_trywait(&stop_publish));
 
 finish_publish:
   return NULL;  
@@ -308,7 +314,10 @@ int main(int argc, char* argv[])
     }
 
 
-    /* Publish/Subscribe thread create */
+    /* Publish/Subscribe thread create and semaphores */
+    sem_init(&done_receiving, 0, 0);
+    sem_init(&stop_publish, 0, 0);
+
     pthread_t sub_tid, pub_tid;
     for (int i = 0; i < NUM_SUBS; i++) {
       pthread_create(&sub_tid, NULL, subscribe_thread, NULL);
@@ -317,6 +326,9 @@ int main(int argc, char* argv[])
     for (int i = 0; i < NUM_PUBS; i++) {
       pthread_create(&pub_tid, NULL, publish_thread, NULL);
     }
+
+    sem_destroy (&done_receiving);
+    sem_destroy (&stop_publish);
 
     /* Merge all threads */
     for (int i = 0; i < NUM_SUBS; i++) {
