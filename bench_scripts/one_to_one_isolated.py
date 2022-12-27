@@ -1,4 +1,4 @@
-from .common import deploy, kill_bench
+from .common import deploy, kill_pubs
 from itertools import combinations
 
 def _parse_sub(subparsers):
@@ -23,7 +23,7 @@ def _main(args, script_fmt):
         p = deploy (sub_cmds, [d1], wait=False)
         deploy (pub_cmds, [d2], wait=False)
         stdout, stderr = p.communicate()
-        kill_bench ([d2])
+        kill_pubs (args.broker_addr, args.mqtt_port)
         outs.append(stdout)
 
     return '\n'.join(outs)

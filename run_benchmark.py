@@ -40,7 +40,7 @@ def _parse_main():
             help = "Number of packets to send")
     p.add_argument("--qos", 
             nargs='?', default = 0, type = int, 
-            help = "QoS of MQTT: [0-2])")
+            help = "QoS of MQTT: [0-2]")
     p.add_argument("--size", 
             nargs=1, default = [64], type = int, 
             help = "Message size in bytes")
@@ -78,6 +78,7 @@ def gen_args():
     with open(args.config) as f:
         config_info = json.load(f)
         devices = get_device_list(config_info["manifest"])
+        broker_addr = f"{config_info['broker']}{config_info['domain']}"
 
     batch_info = {}
     arg_dict = vars(args)
@@ -89,7 +90,8 @@ def gen_args():
             # Batch info overwrites args
             arg_dict.update(batch_info)
 
-    args = Namespace(**arg_dict, **config_info, devices=devices)
+    args = Namespace(**arg_dict, **config_info, devices=devices,
+            broker_addr=broker_addr)
     return args
 
 
@@ -102,7 +104,7 @@ if __name__ == '__main__':
     os.makedirs(args.out_dir, exist_ok=True)
 
     # Bench Main only needs to change pub, sub format topics 
-    address = f"{args.broker}{args.domain}:{args.mqtt_port}"
+    address = f"{args.broker_addr}:{args.mqtt_port}"
     name = "\`hostname\`"
     pt.print("MQTT !", pt.YELLOW, pt.SLANT)
     for iterations, interval, size in product(args.iterations, args.interval, args.size):

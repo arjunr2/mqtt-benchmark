@@ -1,4 +1,5 @@
 import subprocess
+import time
 import shlex
 import sys
 import paho.mqtt.client as paho
@@ -30,18 +31,28 @@ def deploy (cmd_list, devices, sync=False, wait=True):
 
     return proc
 
-
-def pub_callback(client, userdata, result):
-    print("Pubkill sent successfully!\n")
+sync_var = False
+def pub_callback(client, userdata, mid):
+    global sync_var
+    print("Killing publish threads\n")
+    sync_var = True
 
 # Publishes message to 'pubkill' 
-def kill_pubs (broker, port):
+def kill_pubs (broker_addr, port):
+    global sync_var
     client = paho.Client("manager")
-    client.connect(broker, port)
-    client.on_publish(pub_callback)
+    client.connect(broker_addr, port)
+    client.on_publish = pub_callback
+    client.loop_start()
     res, mid = client.publish ("pubkill", "kill", qos=1)
     if res:
         raise ValueError("Failure: Publish to pubkill")
+    # Wait till kill signal is successfully delivered
+    while not sync_var:
+        pass
+    # Sleep a bit for pub thread to completely kill itself
+    time.sleep(0.5)
+    client.loop_stop()
     client.disconnect()
 
 
