@@ -31,18 +31,25 @@ def deploy (cmd_list, devices, sync=False, wait=True):
 
     return proc
 
+
+'''
+    Callback for successful delivery of kill
+'''
 sync_var = False
-def pub_callback(client, userdata, mid):
+def killpub_callback(client, userdata, mid):
     global sync_var
     print("Killing publish threads\n")
     sync_var = True
 
-# Publishes message to 'pubkill' 
+'''
+    Safe killing of all publishers
+    Publishes message to 'pubkill'
+'''
 def kill_pubs (broker_addr, port):
     global sync_var
     client = paho.Client("manager")
     client.connect(broker_addr, port)
-    client.on_publish = pub_callback
+    client.on_publish = killpub_callback
     client.loop_start()
     res, mid = client.publish ("pubkill", "kill", qos=1)
     if res:
