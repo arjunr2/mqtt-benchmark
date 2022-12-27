@@ -15,9 +15,8 @@ start: build
 	mkdir -p results
 	mkdir -p logs
 	mkdir -p debug
-	screen -S $(bench) -L -dm bash -c "$(prerun); \
+	screen -S $(bench) -L -Logfile "debug/$(bench).debug" -dm bash -c "$(prerun); \
 		python3 run_benchmark.py --config hc-mqtt.cfg --batch batch.yml $(bench) $(args)"
-	screen -S $(bench) -X colon "logfile debug/$(bench).debug^M"
 	screen -S $(bench) -X colon "logfile flush 0^M"
 
 stop:
