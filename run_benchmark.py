@@ -8,7 +8,7 @@ import os
 
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from bench_scripts import rtt_isolated, rtt_nointerference, rtt_fullinterference, \
-    one_to_one_isolated, fan_in
+    one_to_one_isolated, fan_in, fan_out
 from postprocess import extract_results
 
 SCRIPTS = [
@@ -16,7 +16,8 @@ SCRIPTS = [
     rtt_nointerference,
     rtt_fullinterference,
     one_to_one_isolated,
-    fan_in
+    fan_in,
+    fan_out
 ]
 
 def get_device_list(src):
