@@ -1,6 +1,6 @@
 .PHONY: comp dir clean
 
-GPTP_DIR=gptp
+GPTP_DIR_MAIN=gptp
 
 .ONESHELL: time-sync
 prerun=:
@@ -23,7 +23,7 @@ stop:
 	screen -S $(bench) -p 0 -X stuff "^C"
 
 time-sync:
-	@cd $(GPTP_DIR);
+	@cd $(GPTP_DIR_MAIN);
 	./kill_gptp.sh
 	@sleep 2
 	./run_gptp.sh
