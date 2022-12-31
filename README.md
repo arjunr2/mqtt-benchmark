@@ -109,6 +109,7 @@ def _main(args, script_fmt):
 ### Registering benchmark
 
 - Each benchmark must implement a `_parse_sub` and a `_main` method. The former register the benchmark with the main subparser and any arguments the benchmark needs, while the latter runs the actual benchmark.
+    - `_main` must return a string with all the relevant results to be logged for post-processing. In most cases, this is just the concatenation of the outputs from all the subscriber threads
 - Add the new file to [bench_scripts/\_\_init\_\_.py](bench_scripts/__init__.py)
 - Add the new file to list of SCRIPTS in [run_benchmark.py](run_benchmark.py)
  
@@ -116,5 +117,5 @@ def _main(args, script_fmt):
 **Important Notes**:
 - `script_fmt` contains the deployment commands with static arguments populated. Each benchmark needs to only format the `pub` and `sub` field to indicate which topics to publish or subscribe to
 - The `deploy` method sends the provided command to all provided devices. It can be made non-blocking by specifying `wait=False`
-- **WARNING**: All publisher threads run in an infinite loop and subscriber threads end when `iterations` number of data points have been captured. The `kill_pubs` method is hence critical to kill all publishers after all data has been captured by scrib
-- `_main` must return a string with all the relevant results to be logged for post-processing. In most cases, this is just the concatenation of the outputs from all the subscriber threads
+- **WARNING**: All publisher threads run in an infinite loop and subscriber threads run until `iterations` number of data points have been captured. The `kill_pubs` method is hence critical to kill all publishers after all subscribers have ended
+
