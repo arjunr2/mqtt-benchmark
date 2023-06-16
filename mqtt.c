@@ -8,7 +8,7 @@
 #include <math.h>
 #include <semaphore.h>
 
-#include "MQTTClient.h"
+#include "include/MQTTClient.h"
 
 #include <unistd.h>
 

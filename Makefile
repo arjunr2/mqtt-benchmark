@@ -1,15 +1,22 @@
 .PHONY: comp dir clean
 
 GPTP_DIR_MAIN=gptp
+SYSROOT_DIR=/home/arjun/Documents/research/webassembly/wali/wali-musl/sysroot
 
 .ONESHELL: time-sync
 prerun=:
 
 build:
-	gcc mqtt.c -lpthread -lpaho-mqtt3cs -lm -o benchmark
+	clang -v --target=wasm32-wasi-threads -O0 --sysroot=$(SYSROOT_DIR) -L$(SYSROOT_DIR)/lib \
+		-L./lib -L/home/arjun/Documents/mqtt-benchmark/lib -matomics -mbulk-memory -mmutable-globals -msign-ext \
+		-Wl,--shared-memory -Wl,--export-memory -Wl,--max-memory=67108864 \
+		-lm -lpaho-mqtt3c -o benchmark mqtt.c
 
+native:
+	gcc mqtt.c -lpthread -lpaho-mqtt3cs -lm -o benchmark-native
+	
 debug:
-	gcc -g mqtt.c -lpthread -lpaho-mqtt3cs -lm -o benchmark
+	gcc -g mqtt.c -lpthread -lpaho-mqtt3cs -lm -o benchmark-native
 
 start: build
 	mkdir -p results
@@ -31,7 +38,7 @@ time-sync:
 
 
 clean:
-	rm benchmark
+	rm benchmark benchmark-native
 
 clean-stats:
 	rm -r results
