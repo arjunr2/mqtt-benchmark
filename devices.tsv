@@ -1,4 +1,5 @@
 Device	Type	Model	CPU	Target	Arch
+hc-31	linux	Intel NUC 11	i5-1145G7	x86_64	tigerlake
 hc-33	linux	Intel NUC 11	i7-1165G7	x86_64	tigerlake
 hc-34	linux	Intel NUC 11	i7-1165G7	x86_64	tigerlake
 hc-35	linux	Intel NUC 11	i7-1165G7	x86_64	tigerlake
